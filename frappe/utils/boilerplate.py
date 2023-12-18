@@ -160,6 +160,12 @@ def _create_app_boilerplate(dest, hooks, no_git=False):
 	with open(os.path.join(dest, hooks.app_name, ".pre-commit-config.yaml"), "w") as f:
 		f.write(frappe.as_unicode(precommit_template.format(**hooks)))
 
+	with open(os.path.join(dest, hooks.app_name, "README.md"), "w") as f:
+		f.write(
+			frappe.as_unicode(
+				f"## {hooks.app_title}\n\n{hooks.app_description}\n\n#### License\n\n{hooks.app_license}"
+			)
+		)
 	license_body = get_license_text(license_name=hooks.app_license)
 	with open(os.path.join(dest, hooks.app_name, "license.txt"), "w") as f:
 		f.write(frappe.as_unicode(license_body))
@@ -757,17 +763,18 @@ patches_template = """[pre_model_sync]
 
 
 precommit_template = """exclude: 'node_modules|.git'
-default_stages: [pre-commit]
+default_stages: [commit]
 fail_fast: false
 
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v4.3.0
     hooks:
       - id: trailing-whitespace
         files: "{app_name}.*"
         exclude: ".*json$|.*txt$|.*csv|.*md|.*svg"
+      - id: check-yaml
       - id: check-merge-conflict
       - id: check-ast
       - id: check-json
@@ -775,18 +782,16 @@ repos:
       - id: check-yaml
       - id: debug-statements
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.9.0
     hooks:
-      - id: ruff
-        name: "Run ruff import sorter"
-        args: ["--select=I", "--fix"]
+      - id: pyupgrade
+        args: ['--py310-plus']
 
-      - id: ruff
-        name: "Run ruff linter"
-
-      - id: ruff-format
-        name: "Run ruff formatter"
+  - repo: https://github.com/frappe/black
+    rev: 951ccf4d5bb0d692b457a5ebc4215d755618eb68
+    hooks:
+      - id: black
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
@@ -821,116 +826,19 @@ repos:
                 {app_name}/public/js/lib/.*
             )$
 
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        additional_dependencies: ['flake8-bugbear',]
+
 ci:
     autoupdate_schedule: weekly
     skip: []
     submodules: false
-"""
-
-linter_workflow_template = """
-name: Linters
-
-on:
-  pull_request:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  linter:
-    name: 'Frappe Linter'
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: pip
-      - uses: pre-commit/action@v3.0.0
-
-      - name: Download Semgrep rules
-        run: git clone --depth 1 https://github.com/frappe/semgrep-rules.git frappe-semgrep-rules
-
-      - name: Run Semgrep rules
-        run: |
-          pip install semgrep
-          semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
-
-  deps-vulnerable-check:
-    name: 'Vulnerable Dependency Check'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - uses: actions/checkout@v4
-
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-
-      - name: Install and run pip-audit
-        run: |
-          pip install pip-audit
-          cd ${GITHUB_WORKSPACE}
-          pip-audit --desc on .
-"""
-
-readme_template = """### {app_title}
-
-{app_description}
-
-### Installation
-
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
-
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app {app_name}
-```
-
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
-
-```bash
-cd apps/{app_name}
-pre-commit install
-```
-
-Pre-commit is configured to use the following tools for checking and formatting your code:
-
-- ruff
-- eslint
-- prettier
-- pyupgrade
-{readme_ci_section}
-### License
-
-{app_license}
-"""
-
-readme_ci_section = """
-### CI
-
-This app can use GitHub Actions for CI. The following workflows are configured:
-
-- CI: Installs this app and runs unit tests on every push to `develop` branch.
-- Linters: Runs [Frappe Semgrep Rules](https://github.com/frappe/semgrep-rules) and [pip-audit](https://pypi.org/project/pip-audit/) on every pull request.
-
 """
