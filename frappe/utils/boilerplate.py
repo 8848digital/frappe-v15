@@ -182,6 +182,7 @@ def _create_app_boilerplate(dest, hooks, no_git=False):
 
 	copy_from_frappe(".editorconfig", app_directory)
 	copy_from_frappe(".eslintrc", app_directory)
+	copy_from_frappe(".flake8", app_directory)
 
 	if hooks.create_github_workflow:
 		_create_github_workflow_files(dest, hooks)
