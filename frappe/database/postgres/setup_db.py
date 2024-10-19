@@ -9,6 +9,19 @@ def setup_database(force, source_sql=None, verbose=False):
 	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
 	root_conn.commit()
 	root_conn.sql("end")
+
+	# Terminate existing connections
+	terminate_query = f"""
+	SELECT pg_terminate_backend(pg_stat_activity.pid)
+	FROM pg_stat_activity
+	WHERE pg_stat_activity.datname = '{frappe.conf.db_name}'
+	AND pid <> pg_backend_pid();
+	"""
+	try:
+		root_conn.sql(terminate_query)
+	except Exception as e:
+		print(f"Error executing terminate_query: {e}")
+
 	root_conn.sql(f'DROP DATABASE IF EXISTS "{frappe.conf.db_name}"')
 
 	# If user exists, just update password
