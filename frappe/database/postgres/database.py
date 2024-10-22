@@ -126,79 +126,47 @@ class PostgresExceptionUtil:
 class ConnectionPool:
 	_connection_pool = None
 	_lock = threading.Lock()
-	_init_lock = threading.Lock()
 
 	@classmethod
-	def _initialize(cls, conn_settings={}):
-		with cls._init_lock:  
-			if cls._connection_pool is None and conn_settings:
-				print("Initializing Connection Pool")
-				cls._connection_pool = pool.ThreadedConnectionPool(
-					minconn=5,
-					maxconn=100,
-					**conn_settings
-				)
+	def _initialize(cls, conn_settings = {}):
+		if not cls._connection_pool:
+			with cls._lock:  
+				if cls._connection_pool is None and conn_settings:
+					print("Initializing Connection Pool")
+					cls._connection_pool = pool.ThreadedConnectionPool(
+						minconn=5,
+						maxconn=100,
+						**conn_settings
+					)
 		return cls._connection_pool
-
+	
 	@classmethod
-	def get_connection(cls, conn_settings={}):
-		if cls._connection_pool is None:
+	def get_connection(cls, conn_settings = {}):
+		if not cls._connection_pool:
 			cls._initialize(conn_settings)
 		try:
-			conn = cls._connection_pool.getconn()
-			if not cls._is_connection_valid(conn):
-				cls._invalidate_pool(conn_settings)
-				conn = cls._connection_pool.getconn()
+			conn =  cls._connection_pool.getconn()
 		except Exception as e:
-			print(f"Error getting connection: {e}")
-			conn = cls._create_new_connection(conn_settings)
+			conn = psycopg2.connect(**conn_settings)
 		return conn
-
-	@classmethod
-	def _is_connection_valid(cls, conn):
-		try:
-			with conn.cursor() as cursor:
-				cursor.execute("SELECT 1")
-			return True
-		except Exception:
-			return False
-
-	@classmethod
-	def _invalidate_pool(cls, conn_settings):
-		with cls._lock:
-			print("Invalidating connection pool")
-			cls._connection_pool = None  # Invalidate the pool
-			cls._initialize(conn_settings)  # Reinitialize the pool
-			print("Finished reinitializing the pool")
-
-	@classmethod
-	def _create_new_connection(cls, conn_settings):
-		try:
-			return psycopg2.connect(**conn_settings)
-		except Exception as e:
-			print(f"Error creating new connection: {e}")
-			return None
-
+	
 	@classmethod
 	def put_connection(cls, conn):
-		if conn:
-			try:
-				cls._connection_pool.putconn(conn)
-			except Exception as e:
-				print(f"Error returning connection to pool: {e}")
-				conn.close()
+		try:
+			cls._connection_pool.putconn(conn)
+		except Exception as e:
+			conn.close()
 
 	@classmethod
-	def get_connection_pool(cls):
-		if cls._connection_pool is None:
-			cls._initialize()
+	def get_connection_pool(cls, conn_settings = {}):
+		if not cls._connection_pool:
+			cls._initialize(conn_settings)
 		return cls._connection_pool
 
 	@classmethod
 	def close_all_connections(cls):
 		if cls._connection_pool:
 			cls._connection_pool.closeall()
-			cls._connection_pool = None  # Reset pool after closing
 
 class PostgresDatabase(PostgresExceptionUtil, Database):
 	REGEX_CHARACTER = "~"
@@ -250,10 +218,7 @@ class PostgresDatabase(PostgresExceptionUtil, Database):
 	def close(self):
 		"""Close database connection."""
 		if self._conn:
-			if frappe.flags.in_install_db:
-				self._conn.close()
-			else:
-				ConnectionPool.put_connection(self._conn)
+			ConnectionPool.put_connection(self._conn)
 			self._cursor = None
 			self._conn = None
 	
@@ -269,10 +234,8 @@ class PostgresDatabase(PostgresExceptionUtil, Database):
 		}
 		if self.port:
 			conn_settings["port"] = self.port
-		if frappe.flags.in_install_db:
-			conn = psycopg2.connect(**conn_settings)
-		else:
-			conn = ConnectionPool.get_connection(conn_settings)
+		
+		conn = ConnectionPool.get_connection(conn_settings)
 		conn.set_isolation_level(ISOLATION_LEVEL_REPEATABLE_READ)
 		return conn
 
