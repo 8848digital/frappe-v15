@@ -840,20 +840,16 @@ class DatabaseQuery:
 
 			elif f.operator.lower() == "is":
 				if f.value == "set":
-					f.operator = "IS NOT NULL" if frappe.conf.db_type == "postgres" else "!="
+					f.operator = "!="
 					# Value can technically be null, but comparing with null will always be falsy
 					# Not using coalesce here is faster because indexes can be used.
 					# null != '' -> null ~ falsy
 					# '' != '' -> false
 					can_be_null = False
-				elif f.value == "not set": 
-					if frappe.conf.db_type == "postgres":
-						f.operator = "IS NULL" 
-						can_be_null = False
-					else:
-						f.operator = "="
-						fallback = "''"
-						can_be_null = True
+				elif f.value == "not set":
+					f.operator = "="
+					fallback = "''"
+					can_be_null = True
 
 				value = ""
 
@@ -901,7 +897,7 @@ class DatabaseQuery:
 				value = f"{tname}.{quote}{f.value.name}{quote}"
 
 			# escape value
-			elif escape and isinstance(value, str) and frappe.conf.db_type != "postgres":
+			elif escape and isinstance(value, str):
 				value = f"{frappe.db.escape(value, percent=False)}"
 
 		if (
