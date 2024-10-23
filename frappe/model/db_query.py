@@ -156,6 +156,7 @@ class DatabaseQuery:
 		self.strict = strict
 		self.ignore_ddl = ignore_ddl
 		self.parent_doctype = parent_doctype
+		self.is_invalid_input = False
 
 		# for contextual user permission check
 		# to determine which user permission is applicable on link field of specific doctype
@@ -222,7 +223,9 @@ class DatabaseQuery:
 		# appear in the order by and group by clause
 		if frappe.db.db_type == "postgres" and args.order_by and args.group_by:
 			args = self.prepare_select_args(args)
-
+		if self.is_invalid_input:
+			return []
+		
 		query = """select {fields}
 			from {tables}
 			{conditions}
@@ -781,6 +784,11 @@ class DatabaseQuery:
 			# for `not in` queries we can't be sure as column values might contain null.
 			if f.operator.lower() == "in":
 				can_be_null &= not f.value or any(v is None or v == "" for v in f.value)
+			if f.fieldtype == 'Date':  # Ensure this condition targets the correct field
+				for value in f.value:
+					if not isinstance(value, datetime.date):  # Check if value is a valid date
+						self.is_invalid_input = True
+						return ""
 
 			values = f.value or ""
 			if isinstance(values, str):
