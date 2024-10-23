@@ -175,7 +175,6 @@ frappe.data_import.DataExporter = class DataExporter {
 	select_mandatory() {
 		let mandatory_table_fields = frappe.meta
 			.get_table_fields(this.doctype)
-			.filter((df) => df.reqd)
 			.map((df) => df.fieldname);
 		mandatory_table_fields.push(this.doctype);
 
