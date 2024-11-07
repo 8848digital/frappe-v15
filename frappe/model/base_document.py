@@ -627,6 +627,7 @@ class BaseDocument:
 
 		# Iterate through the fields in the doctype's meta
 		for field in meta.fields:
+			
 			# Check if the field has a unique constraint
 			if hasattr(field, 'unique') and field.unique:
 				unique_columns.append(field.fieldname)
