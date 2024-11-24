@@ -915,7 +915,6 @@ def _drop_site(
 	from frappe.utils.backups import scheduled_backup
 
 	frappe.init(site=site)
-	frappe.flags.in_drop_site = True
 	frappe.connect()
 
 	try:
