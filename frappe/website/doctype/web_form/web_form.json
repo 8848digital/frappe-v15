@@ -387,7 +387,7 @@
      },
      {
       "fieldname": "condition_json",
-      "fieldtype": "JSON",
+      "fieldtype": "Text",
       "label": "Condition JSON"
      },
      {
