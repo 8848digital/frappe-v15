@@ -212,6 +212,19 @@ class DatabaseQuery:
 			# apply_fieldlevel_read_permissions has likely removed ALL the fields that user asked for
 			return []
 
+		if frappe.db.db_type == "postgres":
+			field_parts = args.fields.split(",")
+			modified_fields = []
+			for part in field_parts:
+				# Handle "as 'alias'" pattern
+				if " as '" in part.lower():
+					before_as, after_as = part.split(" as '", 1)
+					alias = after_as.rstrip("'").strip()
+					modified_fields.append(f'{before_as} AS "{alias}"')
+				else:
+					modified_fields.append(part)
+			args.fields = ",".join(modified_fields)
+
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
@@ -923,13 +936,20 @@ class DatabaseQuery:
 		):
 			if f.operator.lower() == "like" and frappe.conf.get("db_type") == "postgres":
 				f.operator = "ilike"
+			if "ifnull(" in column_name.lower() and frappe.conf.get("db_type") == "postgres":
+				column_name = column_name.replace("ifnull", "coalesce",1)
 			condition = f"{column_name} {f.operator} {value}"
 		else:
 			if df and df.fieldtype not in ("Check", "Float", "Int", "Currency", "Percent"):
-				condition = f"ifnull({column_name}, '{fallback}') {f.operator} {value}"
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 			else:
-				condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
-
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 		return condition
 
 	def build_match_conditions(self, as_condition=True) -> str | list:
