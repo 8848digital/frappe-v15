@@ -24,9 +24,6 @@
 					padding: 17mm 0 1mm !important;
 					page-break-after: always !important;
 				}
-				[document-status] {
-					margin-bottom: 0 !important;
-				}
 				a[href]:after {
 					content: none;
 				}
@@ -37,7 +34,7 @@
 			{{ tag | string }}
 		{%- endfor %}
 	</head>
-	<body>
+	<body onload="subst()">
 		<div class="print-format">
 			<div class="wrapper">
 				{% for tag in content -%}
