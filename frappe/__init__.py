@@ -2157,6 +2157,73 @@ def format(*args, **kwargs):
 
 	return frappe.utils.formatters.format_value(*args, **kwargs)
 
+
+def get_print(
+	doctype=None,
+	name=None,
+	print_format=None,
+	style=None,
+	as_pdf=False,
+	doc=None,
+	output=None,
+	no_letterhead=0,
+	password=None,
+	pdf_options=None,
+	letterhead=None,
+	force_new_backend=False,
+):
+	"""Get Print Format for given document.
+
+	:param doctype: DocType of document.
+	:param name: Name of document.
+	:param print_format: Print Format name. Default 'Standard',
+	:param style: Print Format style.
+	:param as_pdf: Return as PDF. Default False.
+	:param password: Password to encrypt the pdf with. Default None"""
+	from frappe.utils.pdf import get_pdf
+	from frappe.website.serve import get_response_without_exception_handling
+
+	new_pdf_backend = force_new_backend or frappe.get_cached_value(
+		"Print Format", print_format, "new_pdf_backend"
+	)
+	local.form_dict.new_pdf_backend = new_pdf_backend
+	original_form_dict = copy.deepcopy(local.form_dict)
+	try:
+		local.form_dict.doctype = doctype
+		local.form_dict.name = name
+		local.form_dict.format = print_format
+		local.form_dict.style = style
+		local.form_dict.doc = doc
+		local.form_dict.no_letterhead = no_letterhead
+		local.form_dict.letterhead = letterhead
+
+		pdf_options = pdf_options or {}
+		if password:
+			pdf_options["password"] = password
+
+		response = get_response_without_exception_handling("printview", 200)
+		html = str(response.data, "utf-8")
+	finally:
+		local.form_dict = original_form_dict
+
+	if not as_pdf:
+		return html
+
+	if new_pdf_backend:
+		hook_func = frappe.get_hooks("new_pdf_backend")
+		if hook_func:
+			return frappe.call(
+				hook_func[-1],
+				print_format=print_format,
+				html=html,
+				options=pdf_options,
+				output=output,
+				new_pdf_backend=new_pdf_backend,
+			)
+
+	return get_pdf(html, options=pdf_options, output=output, new_pdf_backend=new_pdf_backend)
+
+
 def attach_print(
 	doctype,
 	name,

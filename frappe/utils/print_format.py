@@ -235,7 +235,7 @@ def download_pdf(
 	no_letterhead=0,
 	language=None,
 	letterhead=None,
-	pdf_generator: Literal["wkhtmltopdf", "chrome"] | None = None,
+	force_new_backend=False,
 ):
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
@@ -249,7 +249,7 @@ def download_pdf(
 			as_pdf=True,
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
-			pdf_generator=pdf_generator,
+			force_new_backend=force_new_backend,
 		)
 
 	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
