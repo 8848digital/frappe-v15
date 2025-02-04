@@ -10,6 +10,9 @@ be used to build database driven apps.
 
 Read the documentation: https://frappeframework.com/docs
 """
+
+import base64
+import copy
 import faulthandler
 import functools
 import gc
@@ -1748,16 +1751,9 @@ def read_file(path, raise_not_found=False, as_base64=False):
 		path = path.encode("utf-8")
 
 	if os.path.exists(path):
-		if as_base64:
-			import base64
-
-			with open(path, "rb") as f:
-				content = f.read()
-				return base64.b64encode(content).decode("utf-8")
-		else:
-			with open(path) as f:
-				content = f.read()
-				return as_unicode(content)
+		with open(path, "rb" if as_base64 else "r") as f:
+			content = f.read()
+			return base64.b64encode(content).decode("utf-8") if as_base64 else as_unicode(content)
 	elif raise_not_found:
 		raise OSError(f"{path} Not Found")
 	else:
