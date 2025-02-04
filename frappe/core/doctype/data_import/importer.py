@@ -188,9 +188,9 @@ class Importer:
 				except Exception:
 					messages = frappe.local.message_log
 					frappe.clear_messages()
-
 					# rollback if exception
-					frappe.db.rollback()
+					if self.doctype != "Bank Transaction":
+						frappe.db.rollback()
 
 					create_import_log(
 						self.data_import.name,
