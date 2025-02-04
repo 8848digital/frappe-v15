@@ -76,7 +76,6 @@ class Importer:
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
-
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
 		warnings = [w for w in warnings if w.get("type") != "info"]
