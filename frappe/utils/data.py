@@ -1019,7 +1019,7 @@ def cstr(s, encoding="utf-8"):
 	return frappe.as_unicode(s, encoding)
 
 
-def sbool(x: str) -> bool | Any:
+def sbool(x: str | Any) -> bool | str | Any:
 	"""Converts str object to Boolean if possible.
 	Example:
 	        "true" becomes True
