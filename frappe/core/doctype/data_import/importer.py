@@ -188,6 +188,7 @@ class Importer:
 				except Exception:
 					messages = frappe.local.message_log
 					frappe.clear_messages()
+
 					# rollback if exception
 					frappe.log_error("import exception")
 					if self.doctype != "Bank Transaction":
