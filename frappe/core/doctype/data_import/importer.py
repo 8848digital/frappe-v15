@@ -72,11 +72,11 @@ class Importer:
 		self.data_import.db_set("template_warnings", "")
 
 	def import_data(self):
+		frappe.log_error("importt")
 		self.before_import()
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
-
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
 		warnings = [w for w in warnings if w.get("type") != "info"]
@@ -178,7 +178,7 @@ class Importer:
 					)
 
 					log_index += 1
-
+					frappe.log_error("import loggg")
 					if not self.data_import.status == "Partial Success":
 						self.data_import.db_set("status", "Partial Success")
 
@@ -190,7 +190,9 @@ class Importer:
 					frappe.clear_messages()
 
 					# rollback if exception
-					frappe.db.rollback()
+					frappe.log_error("import exception")
+					if self.doctype != "Bank Transaction":
+						frappe.db.rollback()
 
 					create_import_log(
 						self.data_import.name,
