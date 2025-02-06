@@ -98,7 +98,11 @@ def is_valid_title(title) -> bool:
 
 def get_license_options() -> list[str]:
 	url = "https://api.github.com/licenses"
-	res = requests.get(url=url)
+	try:
+		res = requests.get(url=url)
+	except requests.exceptions.RequestException:
+		return ["agpl-3.0", "gpl-3.0", "mit", "custom"]
+
 	if res.status_code == 200:
 		res = res.json()
 		ids = [r.get("spdx_id") for r in res]
@@ -109,7 +113,10 @@ def get_license_options() -> list[str]:
 
 def get_license_text(license_name: str) -> str:
 	url = f"https://api.github.com/licenses/{license_name.lower()}"
-	res = requests.get(url=url)
+	try:
+		res = requests.get(url=url)
+	except requests.exceptions.RequestException:
+		return "No license text found"
 	if res.status_code == 200:
 		res = res.json()
 		return res.get("body")
@@ -470,6 +477,26 @@ app_license = "{app_license}"
 # 		"on_trash": "method"
 # 	}}
 # }}
+
+
+# Custom Filter in Standard Report
+# ---------------
+
+# report_filters  = {
+#     "General Ledger": "/{app_name}/report_filters/general_ledger.js",
+#	  "Gross Profit": "/{app_name}/report_filters/gross_profit.js"
+# }
+
+# Add the list of filters in 'general_ledger.js'
+# [
+# 	{
+# 		fieldname: "field_name1",
+# 		label: __("Field Name"),
+# 		fieldtype: "Field Type",
+# 	},
+# 	...
+# ]
+
 
 # Scheduled Tasks
 # ---------------

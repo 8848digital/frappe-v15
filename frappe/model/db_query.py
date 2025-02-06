@@ -28,6 +28,7 @@ from frappe.utils import (
 	get_time,
 	get_timespan_date_range,
 	make_filter_tuple,
+	sanitize_column,
 )
 from frappe.utils.data import DateTimeLikeObject, get_datetime, getdate, sbool
 
@@ -211,6 +212,19 @@ class DatabaseQuery:
 			# apply_fieldlevel_read_permissions has likely removed ALL the fields that user asked for
 			return []
 
+		if frappe.db.db_type == "postgres":
+			field_parts = args.fields.split(",")
+			modified_fields = []
+			for part in field_parts:
+				# Handle "as 'alias'" pattern
+				if " as '" in part.lower():
+					before_as, after_as = part.split(" as '", 1)
+					alias = after_as.rstrip("'").strip()
+					modified_fields.append(f'{before_as} AS "{alias}"')
+				else:
+					modified_fields.append(part)
+			args.fields = ",".join(modified_fields)
+
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
@@ -357,7 +371,10 @@ class DatabaseQuery:
 				linked_doctype = linked_field.options
 				if linked_field.fieldtype == "Link":
 					linked_table = self.append_link_table(linked_doctype, linked_fieldname)
-					field = f"{linked_table.table_alias}.`{fieldname}`"
+					if frappe.conf.db_type == "postgres" and self.group_by:
+						field = f"(array_agg({linked_table.table_alias}.`{fieldname}`))[1]"
+					else:
+						field = f"{linked_table.table_alias}.`{fieldname}`"
 				else:
 					field = f"`tab{linked_doctype}`.`{fieldname}`"
 				if alias:
@@ -469,6 +486,9 @@ class DatabaseQuery:
 
 				# Check if table_name is a linked_table alias
 				for linked_table in self.link_tables:
+					if table_name.lower().startswith("(array_agg("):
+						table_name = table_name[11:]
+
 					if linked_table.table_alias == table_name:
 						table_name = linked_table.table_name
 						break
@@ -600,7 +620,7 @@ class DatabaseQuery:
 
 		for f in filters:
 			if isinstance(f, str):
-				conditions.append(f)
+				conditions.append(sanitize_column(f))
 			else:
 				conditions.append(self.prepare_filter_condition(f))
 
@@ -728,6 +748,8 @@ class DatabaseQuery:
 
 		# primary key is never nullable, modified is usually indexed by default and always present
 		can_be_null = f.fieldname not in ("name", "modified", "creation")
+		df = meta.get("fields", {"fieldname": f.fieldname})
+		df = df[0] if df else None
 
 		# prepare in condition
 		if f.operator.lower() in NestedSetHierarchy:
@@ -803,8 +825,6 @@ class DatabaseQuery:
 
 		else:
 			escape = True
-			df = meta.get("fields", {"fieldname": f.fieldname})
-			df = df[0] if df else None
 
 			if df and df.fieldtype in ("Check", "Float", "Int", "Currency", "Percent"):
 				can_be_null = False
@@ -922,10 +942,20 @@ class DatabaseQuery:
 		):
 			if f.operator.lower() == "like" and frappe.conf.get("db_type") == "postgres":
 				f.operator = "ilike"
+			if "ifnull(" in column_name.lower() and frappe.conf.get("db_type") == "postgres":
+				column_name = column_name.replace("ifnull", "coalesce",1)
 			condition = f"{column_name} {f.operator} {value}"
 		else:
-			condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
-
+			if df and df.fieldtype not in ("Check", "Float", "Int", "Currency", "Percent"):
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+			else:
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 		return condition
 
 	def build_match_conditions(self, as_condition=True) -> str | list:

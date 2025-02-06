@@ -27,7 +27,7 @@ class Contact(Document):
 		designation: DF.Data | None
 		email_id: DF.Data | None
 		email_ids: DF.Table[ContactEmail]
-		first_name: DF.Data | None
+		first_name: DF.Data
 		full_name: DF.Data | None
 		gender: DF.Link | None
 		google_contacts: DF.Link | None
@@ -127,7 +127,7 @@ class Contact(Document):
 			return
 
 		if len([email.email_id for email in self.email_ids if email.is_primary]) > 1:
-			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold("Email ID")))
+			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold(_("Email ID"))))
 
 		if len(self.email_ids) == 1:
 			self.email_ids[0].is_primary = 1

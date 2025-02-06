@@ -231,6 +231,7 @@ def execute_job(site, method, event, job_name, kwargs, user=None, is_async=True,
 			# 1213 = deadlock
 			# 1205 = lock wait timeout
 			# or RetryBackgroundJobError is explicitly raised
+			frappe.job.after_job.reset()
 			frappe.destroy()
 			time.sleep(retry + 1)
 
@@ -252,6 +253,9 @@ def execute_job(site, method, event, job_name, kwargs, user=None, is_async=True,
 		return retval
 
 	finally:
+		if not hasattr(frappe.local, "site"):
+			frappe.init(site)
+			frappe.connect()
 		for after_job_task in frappe.get_hooks("after_job"):
 			frappe.call(after_job_task, method=method_name, kwargs=kwargs, result=retval)
 		frappe.local.job.after_job.run()
@@ -634,6 +638,9 @@ def _start_sentry():
 	if tracing_sample_rate := os.getenv("SENTRY_TRACING_SAMPLE_RATE"):
 		kwargs["traces_sample_rate"] = float(tracing_sample_rate)
 
+	if profiling_sample_rate := os.getenv("SENTRY_PROFILING_SAMPLE_RATE"):
+		kwargs["profiles_sample_rate"] = float(profiling_sample_rate)
+	
 	sentry_sdk.init(
 		dsn=sentry_dsn,
 		before_send=before_send,
