@@ -349,25 +349,18 @@ def get_rendered_raw_commands(doc: str, name: str | None = None, print_format: s
 	}
 
 
-<<<<<<< HEAD
 def validate_print_permission(doc):
-	if frappe.has_website_permission(doc):
-		return
-	
-=======
-def validate_print_permission(doc: "Document") -> None:
->>>>>>> bbfb26aaab (refactor(printview): first check for doc permissions, then for website)
 	for ptype in ("read", "print"):
 		if frappe.has_permission(doc.doctype, ptype, doc):
 			return
 
 	if frappe.has_website_permission(doc):
 		return
-	
+
 	if (key := frappe.form_dict.key) and isinstance(key, str):
 		validate_key(key, doc)
 		return
-	
+
 	frappe.throw(_("{0} {1} not found").format(_(doc.doctype), doc.name), frappe.DoesNotExistError)
 
 
