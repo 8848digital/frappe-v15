@@ -52,7 +52,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -78,7 +78,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -108,7 +108,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -183,7 +183,7 @@ class TestAutoRepeat(FrappeTestCase):
 		)
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		new_todo = frappe.db.get_value("ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name")
 
@@ -243,7 +243,7 @@ class TestAutoRepeat(FrappeTestCase):
 		custom_form = get_customize_form("Purchase Invoice")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		item = make_test_item("_Test Item")
   
@@ -280,7 +280,7 @@ class TestAutoRepeat(FrappeTestCase):
 		custom_form = get_customize_form("Sales Invoice")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		item = make_test_item("_Test Item")
   
@@ -312,7 +312,7 @@ class TestAutoRepeat(FrappeTestCase):
 		custom_form = get_customize_form("Journal Entry")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		jv=make_journal_entry(
 			account1="Cash - _TC",
