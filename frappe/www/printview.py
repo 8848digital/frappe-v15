@@ -57,7 +57,6 @@ def get_context(context):
 		no_letterhead=frappe.form_dict.no_letterhead,
 		letterhead=letterhead,
 		settings=settings,
-		new_pdf_backend=frappe.form_dict.new_pdf_backend,
 	)
 
 	make_access_log(
@@ -81,7 +80,7 @@ def get_context(context):
 		"print_format": print_format_name,
 		"letterhead": letterhead,
 		"no_letterhead": frappe.form_dict.no_letterhead,
-		"new_pdf_backend": frappe.form_dict.new_pdf_backend,
+		"chrome_pdf_generator": frappe.form_dict.get("chrome_pdf_generator", False),
 	}
 
 
@@ -108,7 +107,6 @@ def get_rendered_template(
 	letterhead: str | None = None,
 	trigger_print: bool = False,
 	settings: dict | None = None,
-	new_pdf_backend: bool = False,
 ) -> str:
 	if not frappe.flags.ignore_print_permissions:
 		validate_print_permission(doc)
@@ -157,9 +155,7 @@ def get_rendered_template(
 
 		template = None
 		if hook_func := frappe.get_hooks("get_print_format_template"):
-			template = frappe.get_attr(hook_func[-1])(
-				jenv=jenv, print_format=print_format, new_pdf_backend=new_pdf_backend
-			)
+			template = frappe.call(hook_func[-1], jenv=jenv, print_format=print_format)
 
 		if template:
 			pass
@@ -229,7 +225,6 @@ def get_rendered_template(
 			"letter_head": letter_head.content,
 			"footer": letter_head.footer,
 			"print_settings": print_settings,
-			"new_pdf_backend": new_pdf_backend,
 		}
 	)
 	hook_func = frappe.get_hooks("pdf_body_html")
