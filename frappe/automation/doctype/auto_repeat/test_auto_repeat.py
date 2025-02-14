@@ -14,7 +14,7 @@ import frappe.desk.form
 import frappe.desk.form.load
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, add_months, getdate, today
-
+from frappe.tests.utils import if_app_installed
 
 if TYPE_CHECKING:
 	from frappe.custom.doctype.custom_field.custom_field import CustomField
@@ -235,121 +235,119 @@ class TestAutoRepeat(FrappeTestCase):
 		)
 		self.assertEqual(docnames[0].docstatus, 1)
 
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_purchase_invoice_TC_ACC_140(self):
-		from frappe.tests.utils import if_app_installed
-		if if_app_installed("erpnext"):
-			from erpnext.accounts.doctype.payment_entry.test_payment_entry import (
-				create_purchase_invoice,
-				make_test_item
-			)
-			custom_form = get_customize_form("Purchase Invoice")
-			custom_form.allow_auto_repeat=1
-			custom_form.run_method("save_customization")
-			
-			
-			item = make_test_item("_Test Item")
-	
-			invoice = create_purchase_invoice(
-				supplier="_Test Supplier",
-				company="_Test Company",
-				item_code=item.name,
-				rate=1000
-			)
-			invoice.submit()
-			
+		from erpnext.accounts.doctype.payment_entry.test_payment_entry import (
+			create_purchase_invoice,
+			make_test_item
+		)
+		custom_form = get_customize_form("Purchase Invoice")
+		custom_form.allow_auto_repeat=1
+		custom_form.run_method("save_customization")
+		
+		
+		item = make_test_item("_Test Item")
 
-			doc = make_auto_repeat(
-				reference_doctype="Purchase Invoice",
-				reference_document=invoice.name,
-				frequency="Daily",
-				start_date=today(),
-				end_date=add_months(today(), 1),
-				submit_on_creation=1
-			)
+		invoice = create_purchase_invoice(
+			supplier="_Test Supplier",
+			company="_Test Company",
+			item_code=item.name,
+			rate=1000
+		)
+		invoice.submit()
+		
 
-			data = get_auto_repeat_entries(getdate(today()))
-			create_repeated_entries(data)
-			docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
-			if len(docnames) > 0:
-				_pi =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
-				self.assertEqual(_pi.auto_repeat, doc.name)
-   
+		doc = make_auto_repeat(
+			reference_doctype="Purchase Invoice",
+			reference_document=invoice.name,
+			frequency="Daily",
+			start_date=today(),
+			end_date=add_months(today(), 1),
+			submit_on_creation=1
+		)
+
+		data = get_auto_repeat_entries(getdate(today()))
+		create_repeated_entries(data)
+		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
+		if len(docnames) > 0:
+			_pi =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
+			self.assertEqual(_pi.auto_repeat, doc.name)
+
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_sales_invoice_TC_ACC_141(self):
-		from frappe.tests.utils import if_app_installed
-		if if_app_installed("erpnext"):
-			from erpnext.accounts.doctype.sales_invoice.test_sales_invoice import (
-				create_sales_invoice,
-			)
+		from erpnext.accounts.doctype.sales_invoice.test_sales_invoice import (
+			create_sales_invoice,
+		)
 
-			from erpnext.accounts.doctype.payment_entry.test_payment_entry import make_test_item
-			custom_form = get_customize_form("Sales Invoice")
-			custom_form.allow_auto_repeat=1
-			custom_form.run_method("save_customization")
-			
-			
-			item = make_test_item("_Test Item")
-	
-			invoice = create_sales_invoice(
-				customer="_Test Customer",
-				company="_Test Company",
-				item_code=item.name,
-				rate=1000
-			)
-			
-			doc = make_auto_repeat(
-				reference_doctype="Sales Invoice",
-				reference_document=invoice.name,
-				frequency="Daily",
-				start_date=today(),
-				end_date=add_months(today(), 1),
-				submit_on_creation=1
-			)
-	
-			data = get_auto_repeat_entries(getdate(today()))
-			create_repeated_entries(data)
-			docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
-			if len(docnames) > 0:
-				_si =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
-				self.assertEqual(_si.auto_repeat, doc.name)
+		from erpnext.accounts.doctype.payment_entry.test_payment_entry import make_test_item
+		custom_form = get_customize_form("Sales Invoice")
+		custom_form.allow_auto_repeat=1
+		custom_form.run_method("save_customization")
+		
+		
+		item = make_test_item("_Test Item")
 
+		invoice = create_sales_invoice(
+			customer="_Test Customer",
+			company="_Test Company",
+			item_code=item.name,
+			rate=1000
+		)
+		
+		doc = make_auto_repeat(
+			reference_doctype="Sales Invoice",
+			reference_document=invoice.name,
+			frequency="Daily",
+			start_date=today(),
+			end_date=add_months(today(), 1),
+			submit_on_creation=1
+		)
+
+		data = get_auto_repeat_entries(getdate(today()))
+		create_repeated_entries(data)
+		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
+		if len(docnames) > 0:
+			_si =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
+			self.assertEqual(_si.auto_repeat, doc.name)
+
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_journal_entry_TC_ACC_142(self):
-		from frappe.tests.utils import if_app_installed
-		if if_app_installed("erpnext"):
-			from erpnext.accounts.doctype.journal_entry.test_journal_entry import make_journal_entry
-			custom_form = get_customize_form("Journal Entry")
-			custom_form.allow_auto_repeat=1
-			custom_form.run_method("save_customization")
-			
-			
-			jv=make_journal_entry(
-				account1="Cash - _TC",
-				account2="_Test Payable - _TC",
-				amount=1000.0,
-				exchange_rate=0,
-				save=False,
-				submit=False
-			)
-			for account in jv.accounts:
-				if account.account=="_Test Payable - _TC":
-					account.party_type = "Supplier"
-					account.party = "_Test Supplier"
-			jv.save().submit()
 
-			doc = make_auto_repeat(
-				reference_doctype="Journal Entry",
-				reference_document=jv.name,
-				frequency="Daily",
-				start_date=today(),
-				end_date=add_months(today(), 1),
-				submit_on_creation=1
-			)
-	
-			data = get_auto_repeat_entries(getdate(today()))
-			create_repeated_entries(data)
-			docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
-			if len(docnames) > 0:
-				_jv =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
-				self.assertEqual(_jv.auto_repeat, doc.name)
+		from erpnext.accounts.doctype.journal_entry.test_journal_entry import make_journal_entry
+		custom_form = get_customize_form("Journal Entry")
+		custom_form.allow_auto_repeat=1
+		custom_form.run_method("save_customization")
+		
+		
+		jv=make_journal_entry(
+			account1="Cash - _TC",
+			account2="_Test Payable - _TC",
+			amount=1000.0,
+			exchange_rate=0,
+			save=False,
+			submit=False
+		)
+		for account in jv.accounts:
+			if account.account=="_Test Payable - _TC":
+				account.party_type = "Supplier"
+				account.party = "_Test Supplier"
+		jv.save().submit()
+
+		doc = make_auto_repeat(
+			reference_doctype="Journal Entry",
+			reference_document=jv.name,
+			frequency="Daily",
+			start_date=today(),
+			end_date=add_months(today(), 1),
+			submit_on_creation=1
+		)
+
+		data = get_auto_repeat_entries(getdate(today()))
+		create_repeated_entries(data)
+		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
+		if len(docnames) > 0:
+			_jv =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
+			self.assertEqual(_jv.auto_repeat, doc.name)
 def get_customize_form(doctype=None):
 		d = frappe.get_doc("Customize Form")
 		if doctype:
