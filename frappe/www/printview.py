@@ -80,7 +80,7 @@ def get_context(context):
 		"print_format": print_format_name,
 		"letterhead": letterhead,
 		"no_letterhead": frappe.form_dict.no_letterhead,
-		"chrome_pdf_generator": frappe.form_dict.get("chrome_pdf_generator", False),
+		"pdf_generator": frappe.form_dict.get("pdf_generator", "wkhtmltopdf"),
 	}
 
 
