@@ -26,13 +26,21 @@ standard_format = "templates/print_formats/standard.html"
 def get_context(context):
 	"""Build context for print"""
 	if not ((frappe.form_dict.doctype and frappe.form_dict.name) or frappe.form_dict.doc):
-		return {
-			"body": f"""
-				<h1>Error</h1>
-				<p>Parameters doctype and name required</p>
-				<pre>{escape_html(frappe.as_json(frappe.form_dict, indent=2))}</pre>
-				"""
-		}
+		return PrintContext(
+			print_style="",
+			comment="",
+			title="Error",
+			lang="en",
+			layout_direction="ltr",
+			doctype="",
+			name="",
+			key="",
+			body=f"""
+			<h1>Error</h1>
+			<p>Parameters doctype and name required</p>
+			<pre>{escape_html(frappe.as_json(frappe.form_dict, indent=2))}</pre>
+			""",
+					)
 
 	if frappe.form_dict.doc:
 		doc = frappe.form_dict.doc
@@ -296,8 +304,8 @@ def get_html_and_style(
 	trigger_print: bool = False,
 	style: str | None = None,
 	settings: str | None = None,
-):
-	"""Returns `html` and `style` of print format, used in PDF etc"""
+) -> dict[str, str | None]:
+	"""Return `html` and `style` of print format, used in PDF etc."""
 
 	if isinstance(name, str):
 		document = frappe.get_doc(doc, name)
