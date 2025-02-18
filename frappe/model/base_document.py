@@ -138,6 +138,9 @@ class BaseDocument:
 		if hasattr(self, "__setup__"):
 			self.__setup__()
 
+	def __json__(self):
+		return self.as_dict(no_nulls=True)
+
 	@cached_property
 	def meta(self):
 		return frappe.get_meta(self.doctype)
@@ -415,6 +418,9 @@ class BaseDocument:
 
 			if ignore_nulls and not is_virtual_field and value is None:
 				continue
+
+			if hasattr(value, "__value__"):
+				value = value.__value__()
 
 			d[fieldname] = value
 

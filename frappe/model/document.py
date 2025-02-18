@@ -20,7 +20,7 @@ from frappe.model.docstatus import DocStatus
 from frappe.model.naming import set_new_name, validate_name
 from frappe.model.utils import is_virtual_doctype
 from frappe.model.workflow import set_workflow_state_on_action, validate_workflow
-from frappe.types import DF
+from frappe.types import DF, DocRef
 from frappe.utils import compare, cstr, date_diff, file_lock, flt, get_datetime_str, now
 from frappe.utils.data import get_absolute_url, get_datetime, get_timedelta, getdate
 from frappe.utils.global_search import update_global_search
@@ -175,7 +175,14 @@ class Document(BaseDocument):
 
 			super().__init__(d)
 		self.flags.pop("ignore_children", None)
+		self.load_children_from_db()
+		# sometimes __setup__ can depend on child values, hence calling again at the end
+		if hasattr(self, "__setup__"):
+			self.__setup__()
+		return self
+	
 
+	def load_children_from_db(self):
 		for df in self._get_table_fields():
 			# Make sure not to query the DB for a child table, if it is a virtual one.
 			# During frappe is installed, the property "is_virtual" is not available in tabDocType, so
@@ -197,10 +204,6 @@ class Document(BaseDocument):
 			)
 
 			self.set(df.fieldname, children)
-
-		# sometimes __setup__ can depend on child values, hence calling again at the end
-		if hasattr(self, "__setup__"):
-			self.__setup__()
 
 		return self
 
@@ -1664,15 +1667,18 @@ class Document(BaseDocument):
 
 		doc = self.get_valid_dict(convert_dates_to_str=True, ignore_virtual=True)
 		deferred_insert(doctype=self.doctype, records=doc)
+	
+	def __str__(self):
+		return f"{self.doctype} ({self.name or 'unsaved'})"
 
 	def __repr__(self):
+		doctype = f"doctype={self.doctype}"
 		name = self.name or "unsaved"
-		doctype = self.__class__.__name__
 
 		docstatus = f" docstatus={self.docstatus}" if self.docstatus else ""
 		parent = f" parent={self.parent}" if getattr(self, "parent", None) else ""
 
-		return f"<{doctype}: {name}{docstatus}{parent}>"
+		return f"<{self.__class__.__name__}: {doctype} {name}{docstatus}{parent}>"
 
 	def __str__(self):
 		name = self.name or "unsaved"

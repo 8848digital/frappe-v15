@@ -490,17 +490,7 @@ class User(Document):
 
 		# delete shares
 		frappe.db.delete("DocShare", {"user": self.name})
-		# delete messages
-		table = DocType("Communication")
-		frappe.db.delete(
-			table,
-			filters=(
-				(table.communication_type.isin(["Chat", "Notification"]))
-				& (table.reference_doctype == "User")
-				& ((table.reference_name == self.name) | table.owner == self.name)
-			),
-			run=False,
-		)
+		
 		# unlink contact
 		table = DocType("Contact")
 		frappe.qb.update(table).where(table.user == self.name).set(table.user, None).run()
@@ -783,7 +773,7 @@ def get_all_roles():
 @frappe.whitelist()
 def get_roles(arg=None):
 	"""get roles for a user"""
-	return frappe.get_roles(frappe.form_dict["uid"])
+	return frappe.get_roles(frappe.form_dict.get("uid", frappe.session.user))
 
 
 @frappe.whitelist()
