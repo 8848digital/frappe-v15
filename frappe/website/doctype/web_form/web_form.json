@@ -412,12 +412,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Specify the domains or origins that are permitted to embed this form. Enter one domain per line (e.g., https://example.com). If no domains are specified, the form can only be embedded on the same origin.",
-   "fieldname": "allowed_embedding_domains",
-   "fieldtype": "Small Text",
-   "label": "Allowed embedding domains"
-  },
-  {
    "fieldname": "column_break_hhecc",
    "fieldtype": "Column Break"
   }
@@ -426,7 +420,7 @@
  "icon": "icon-edit",
  "is_published_field": "published",
  "links": [],
- "modified": "2025-02-21 19:27:03.485468",
+ "modified": "2025-02-21 21:01:47.619481",
  "modified_by": "Administrator",
  "module": "Website",
  "name": "Web Form",
