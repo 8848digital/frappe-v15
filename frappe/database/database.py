@@ -11,7 +11,7 @@ import traceback
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager, suppress
 from time import time
-from typing import TYPE_CHECKING, Any, Union, TypeAlias, Hashable
+from typing import TYPE_CHECKING, Any, Union, TypeAlias
 from frappe.model.document import DocRef
 from pypika.dialects import MySQLQueryBuilder, PostgreSQLQueryBuilder
 from pypika.terms import Criterion, NullValue

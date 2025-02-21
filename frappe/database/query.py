@@ -347,6 +347,8 @@ class Engine:
 		return _fields
 
 	def apply_order_by(self, order_by: str | None):
+		if self.is_postgres and "SUM(" in str(self.query).upper():
+			return
 		if not order_by or order_by == DefaultOrderBy:
 			return
 		for declaration in order_by.split(","):
