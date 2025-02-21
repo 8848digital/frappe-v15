@@ -862,6 +862,7 @@ def whitelist(allow_guest=False, xss_safe=False, methods=None):
 		else:
 			fn = validate_argument_types(fn, apply_condition=in_request_or_test)
 
+		#convert set to list fixed
 		whitelisted.add(fn)
 		allowed_http_methods_for_whitelisted_func[fn] = methods
 
