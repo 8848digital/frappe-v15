@@ -20,7 +20,7 @@ from frappe.model.docstatus import DocStatus
 from frappe.model.naming import set_new_name, validate_name
 from frappe.model.utils import is_virtual_doctype
 from frappe.model.workflow import set_workflow_state_on_action, validate_workflow
-from frappe.types import DF
+from frappe.types import DF, DocRef
 from frappe.utils import compare, cstr, date_diff, file_lock, flt, get_datetime_str, now
 from frappe.utils.data import get_absolute_url, get_datetime, get_timedelta, getdate
 from frappe.utils.global_search import update_global_search
@@ -175,7 +175,14 @@ class Document(BaseDocument):
 
 			super().__init__(d)
 		self.flags.pop("ignore_children", None)
+		self.load_children_from_db()
+		# sometimes __setup__ can depend on child values, hence calling again at the end
+		if hasattr(self, "__setup__"):
+			self.__setup__()
+		return self
+	
 
+	def load_children_from_db(self):
 		for df in self._get_table_fields():
 			# Make sure not to query the DB for a child table, if it is a virtual one.
 			# During frappe is installed, the property "is_virtual" is not available in tabDocType, so
@@ -197,10 +204,6 @@ class Document(BaseDocument):
 			)
 
 			self.set(df.fieldname, children)
-
-		# sometimes __setup__ can depend on child values, hence calling again at the end
-		if hasattr(self, "__setup__"):
-			self.__setup__()
 
 		return self
 
@@ -235,8 +238,12 @@ class Document(BaseDocument):
 
 	def raise_no_permission_to(self, perm_type):
 		"""Raise `frappe.PermissionError`."""
-		frappe.flags.error_message = (
-			_("Insufficient Permission for {0}").format(self.doctype) + f" ({frappe.bold(_(perm_type))})"
+		frappe.flags.error_message = _(
+			"You need the '{0}' permission on {1} {2} to perform this action."
+		).format(
+			_(perm_type),
+			frappe.bold(_(self.doctype)),
+			self.name or "",
 		)
 		raise frappe.PermissionError
 
@@ -309,6 +316,7 @@ class Document(BaseDocument):
 		self.flags.in_insert = True
 
 		if self.get("amended_from"):
+			self.validate_amended_from()
 			self.copy_attachments_from_amended_from()
 
 		relink_mismatched_files(self)
@@ -395,6 +403,13 @@ class Document(BaseDocument):
 
 		return self
 
+	def validate_amended_from(self):
+		if frappe.db.get_value(self.doctype, self.get("amended_from"), "docstatus") != 2:
+			message = _(
+				"{0} cannot be amended because it is not cancelled. Please cancel the document before creating an amendment."
+			).format(frappe.utils.get_link_to_form(self.doctype, self.get("amended_from")))
+			frappe.throw(message, title=_("Amendment Not Allowed"))
+	
 	def copy_attachments_from_amended_from(self):
 		"""Copy attachments from `amended_from`"""
 		from frappe.desk.form.load import get_attachments
@@ -579,7 +594,7 @@ class Document(BaseDocument):
 		self._fix_rating_value()
 		self._validate_code_fields()
 		self._sync_autoname_field()
-		self._extract_images_from_text_editor()
+		self._extract_images_from_editor()
 		self._sanitize_content()
 		self._save_passwords()
 		self.validate_workflow()
@@ -592,7 +607,7 @@ class Document(BaseDocument):
 			d._fix_rating_value()
 			d._validate_code_fields()
 			d._sync_autoname_field()
-			d._extract_images_from_text_editor()
+			d._extract_images_from_editor()
 			d._sanitize_content()
 			d._save_passwords()
 		if self.is_new():
@@ -1591,8 +1606,16 @@ class Document(BaseDocument):
 			return
 
 		if date_diff(to_date, from_date) < 0:
+			table_row = ""
+			if self.meta.istable:
+				table_row = _("{0} row #{1}: ").format(
+					_(frappe.unscrub(self.parentfield)),
+					self.idx,
+				)
+
 			frappe.throw(
-				_("{0} must be after {1}").format(
+				table_row
+				+ _("{0} must be after {1}").format(
 					frappe.bold(_(self.meta.get_label(to_date_field))),
 					frappe.bold(_(self.meta.get_label(from_date_field))),
 				),
@@ -1644,15 +1667,18 @@ class Document(BaseDocument):
 
 		doc = self.get_valid_dict(convert_dates_to_str=True, ignore_virtual=True)
 		deferred_insert(doctype=self.doctype, records=doc)
+	
+	def __str__(self):
+		return f"{self.doctype} ({self.name or 'unsaved'})"
 
 	def __repr__(self):
+		doctype = f"doctype={self.doctype}"
 		name = self.name or "unsaved"
-		doctype = self.__class__.__name__
 
 		docstatus = f" docstatus={self.docstatus}" if self.docstatus else ""
 		parent = f" parent={self.parent}" if getattr(self, "parent", None) else ""
 
-		return f"<{doctype}: {name}{docstatus}{parent}>"
+		return f"<{self.__class__.__name__}: {doctype} {name}{docstatus}{parent}>"
 
 	def __str__(self):
 		name = self.name or "unsaved"

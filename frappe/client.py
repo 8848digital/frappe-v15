@@ -9,6 +9,7 @@ import frappe.model
 import frappe.utils
 from frappe import _
 from frappe.desk.reportview import validate_args
+from frappe.desk.search import search_link
 from frappe.model.db_query import check_parent_permission
 from frappe.model.utils import is_virtual_doctype
 from frappe.utils import get_safe_filters
@@ -416,7 +417,7 @@ def is_document_amended(doctype, docname):
 
 
 @frappe.whitelist()
-def validate_link(doctype: str, docname: str, fields=None):
+def validate_link(doctype: str, docname: str, fields=None, args=None):
 	if not isinstance(doctype, str):
 		frappe.throw(_("DocType must be a string"))
 
@@ -432,7 +433,24 @@ def validate_link(doctype: str, docname: str, fields=None):
 		)
 
 	values = frappe._dict()
+	args = frappe.parse_json(args)
+	filters = args.filters or frappe._dict()
 
+	standard_queries = frappe.get_hooks().standard_queries or {}
+
+	if not args.get("query") and doctype in standard_queries:
+		args.update({"query" : standard_queries[doctype][-1]})
+
+	if args.get("query"):
+		if not search_link(doctype, docname, args.get("query"), filters):
+			return values
+		filters = {'name' : docname}
+	else:
+		if isinstance(filters, list):
+			filters.append(["name", "=", docname])
+		else:	
+			filters.update({'name' : docname})
+			
 	if is_virtual_doctype(doctype):
 		try:
 			frappe.get_doc(doctype, docname)
@@ -444,7 +462,8 @@ def validate_link(doctype: str, docname: str, fields=None):
 			)
 		return values
 
-	values.name = frappe.db.get_value(doctype, docname, cache=True)
+	result = frappe.db.get_list(doctype, filters = filters,pluck = 'name')
+	if result: values.name = result[0]
 
 	fields = frappe.parse_json(fields)
 	if not values.name or not fields:

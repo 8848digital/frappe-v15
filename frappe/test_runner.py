@@ -16,6 +16,7 @@ import frappe.utils.scheduler
 from frappe.model.naming import revert_series_if_last
 from frappe.modules import get_module_name, load_doctype_module
 from frappe.utils import cint
+from frappe.tests.utils import check_doctype_and_module
 
 unittest_runner = unittest.TextTestRunner
 SLOW_TEST_THRESHOLD = 2
@@ -38,6 +39,7 @@ def xmlrunner_wrapper(output):
 
 
 def main(
+	site=None,
 	app=None,
 	module=None,
 	doctype=None,
@@ -52,6 +54,10 @@ def main(
 	case=None,
 ):
 	global unittest_runner
+
+	frappe.init(site=site)
+	if not frappe.db:
+		frappe.connect()
 
 	if doctype_list_path:
 		app, doctype_list_path = doctype_list_path.split(os.path.sep, 1)
@@ -68,9 +74,6 @@ def main(
 	try:
 		frappe.flags.print_messages = verbose
 		frappe.flags.in_test = True
-
-		if not frappe.db:
-			frappe.connect()
 
 		# workaround! since there is no separate test db
 		frappe.clear_cache()
@@ -329,10 +332,7 @@ def _add_test(app, path, filename, verbose, test_suite=None):
 
 
 def make_test_records(doctype, verbose=0, force=False, commit=False):
-	if not frappe.db:
-		frappe.connect()
-
-	if frappe.flags.skip_test_records:
+	if frappe.flags.skip_test_records or not check_doctype_and_module(doctype):
 		return
 
 	for options in get_dependencies(doctype):
@@ -359,6 +359,7 @@ def get_modules(doctype):
 
 def get_dependencies(doctype):
 	module, test_module = get_modules(doctype)
+ 
 	meta = frappe.get_meta(doctype)
 	link_fields = meta.get_link_fields()
 

@@ -28,6 +28,7 @@ from frappe.utils import (
 	get_time,
 	get_timespan_date_range,
 	make_filter_tuple,
+	sanitize_column,
 )
 from frappe.utils.data import DateTimeLikeObject, get_datetime, getdate, sbool
 
@@ -156,6 +157,7 @@ class DatabaseQuery:
 		self.strict = strict
 		self.ignore_ddl = ignore_ddl
 		self.parent_doctype = parent_doctype
+		self.is_invalid_input = False
 
 		# for contextual user permission check
 		# to determine which user permission is applicable on link field of specific doctype
@@ -210,18 +212,34 @@ class DatabaseQuery:
 			# apply_fieldlevel_read_permissions has likely removed ALL the fields that user asked for
 			return []
 
+		if frappe.db.db_type == "postgres":
+			field_parts = args.fields.split(",")
+			modified_fields = []
+			for part in field_parts:
+				# Handle "as 'alias'" pattern
+				if " as '" in part.lower():
+					before_as, after_as = part.split(" as '", 1)
+					alias = after_as.rstrip("'").strip()
+					modified_fields.append(f'{before_as} AS "{alias}"')
+				else:
+					modified_fields.append(part)
+			args.fields = ",".join(modified_fields)
+
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
 		if self.distinct:
-			args.fields = "distinct " + args.fields
+			if not args.fields.startswith("distinct"):
+				args.fields = "distinct " + args.fields
 			args.order_by = ""  # TODO: recheck for alternative
 
 		# Postgres requires any field that appears in the select clause to also
 		# appear in the order by and group by clause
 		if frappe.db.db_type == "postgres" and args.order_by and args.group_by:
 			args = self.prepare_select_args(args)
-
+		if self.is_invalid_input:
+			return []
+		
 		query = """select {fields}
 			from {tables}
 			{conditions}
@@ -353,7 +371,10 @@ class DatabaseQuery:
 				linked_doctype = linked_field.options
 				if linked_field.fieldtype == "Link":
 					linked_table = self.append_link_table(linked_doctype, linked_fieldname)
-					field = f"{linked_table.table_alias}.`{fieldname}`"
+					if frappe.conf.db_type == "postgres" and self.group_by:
+						field = f"(array_agg({linked_table.table_alias}.`{fieldname}`))[1]"
+					else:
+						field = f"{linked_table.table_alias}.`{fieldname}`"
 				else:
 					field = f"`tab{linked_doctype}`.`{fieldname}`"
 				if alias:
@@ -465,6 +486,9 @@ class DatabaseQuery:
 
 				# Check if table_name is a linked_table alias
 				for linked_table in self.link_tables:
+					if table_name.lower().startswith("(array_agg("):
+						table_name = table_name[11:]
+
 					if linked_table.table_alias == table_name:
 						table_name = linked_table.table_name
 						break
@@ -596,7 +620,7 @@ class DatabaseQuery:
 
 		for f in filters:
 			if isinstance(f, str):
-				conditions.append(f)
+				conditions.append(sanitize_column(f))
 			else:
 				conditions.append(self.prepare_filter_condition(f))
 
@@ -724,6 +748,8 @@ class DatabaseQuery:
 
 		# primary key is never nullable, modified is usually indexed by default and always present
 		can_be_null = f.fieldname not in ("name", "modified", "creation")
+		df = meta.get("fields", {"fieldname": f.fieldname})
+		df = df[0] if df else None
 
 		# prepare in condition
 		if f.operator.lower() in NestedSetHierarchy:
@@ -780,6 +806,11 @@ class DatabaseQuery:
 			# for `not in` queries we can't be sure as column values might contain null.
 			if f.operator.lower() == "in":
 				can_be_null &= not f.value or any(v is None or v == "" for v in f.value)
+			if f.fieldtype == 'Date':  # Ensure this condition targets the correct field
+				for value in f.value:
+					if not isinstance(value, datetime.date):  # Check if value is a valid date
+						self.is_invalid_input = True
+						return ""
 
 			values = f.value or ""
 			if isinstance(values, str):
@@ -794,8 +825,6 @@ class DatabaseQuery:
 
 		else:
 			escape = True
-			df = meta.get("fields", {"fieldname": f.fieldname})
-			df = df[0] if df else None
 
 			if df and df.fieldtype in ("Check", "Float", "Int", "Currency", "Percent"):
 				can_be_null = False
@@ -838,20 +867,26 @@ class DatabaseQuery:
 				fallback = f"'{FallBackDateTimeStr}'"
 
 			elif f.operator.lower() == "is":
-				if f.value == "set":
-					f.operator = "!="
-					# Value can technically be null, but comparing with null will always be falsy
-					# Not using coalesce here is faster because indexes can be used.
-					# null != '' -> null ~ falsy
-					# '' != '' -> false
-					can_be_null = False
-				elif f.value == "not set":
-					f.operator = "="
-					fallback = "''"
-					can_be_null = True
-
+				is_postgres = frappe.conf.db_type == "postgres"
 				value = ""
 
+				if f.value == "set":
+					# Use appropriate operators for different DBs
+					f.operator = "IS NOT NULL" if is_postgres else "!="
+					can_be_null = False  # No null comparison in "set"
+					escape = not is_postgres  
+				elif f.value == "not set":
+					if is_postgres:
+						f.operator = "IS NULL"
+						can_be_null = False
+						escape = False  
+					else:
+						f.operator = "="
+						fallback = "''"  
+						can_be_null = True
+						escape = True
+
+				# If null values are allowed and "ifnull" is not already used
 				if can_be_null and "ifnull" not in column_name.lower():
 					column_name = f"ifnull({column_name}, {fallback})"
 
@@ -907,10 +942,20 @@ class DatabaseQuery:
 		):
 			if f.operator.lower() == "like" and frappe.conf.get("db_type") == "postgres":
 				f.operator = "ilike"
+			if "ifnull(" in column_name.lower() and frappe.conf.get("db_type") == "postgres":
+				column_name = column_name.replace("ifnull", "coalesce",1)
 			condition = f"{column_name} {f.operator} {value}"
 		else:
-			condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
-
+			if df and df.fieldtype not in ("Check", "Float", "Int", "Currency", "Percent"):
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+			else:
+				if frappe.conf.get("db_type") == "postgres":
+					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+				else:
+					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 		return condition
 
 	def build_match_conditions(self, as_condition=True) -> str | list:

@@ -344,16 +344,20 @@ def get_external_links(doctype, name, links):
 
 
 def get_doc_count(doctype, filters):
-	return len(
-		frappe.get_all(
-			doctype,
-			fields="name",
-			filters=filters,
-			limit=100,
-			distinct=True,
-			ignore_ifnull=True,
+	try:
+		return len(
+			frappe.get_all(
+				doctype,
+				fields="name",
+				filters=filters,
+				limit=100,
+				distinct=True,
+				ignore_ifnull=True,
+			)
 		)
-	)
+	except:
+		frappe.db.rollback() 
+		return 0
 
 
 def get_dynamic_link_filters(doctype, links, fieldname):
