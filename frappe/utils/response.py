@@ -220,6 +220,7 @@ def json_handler(obj):
 
 	elif isinstance(obj, frappe.model.document.BaseDocument):
 		return obj.as_dict(no_nulls=True)
+		
 	elif isinstance(obj, Iterable):
 		return list(obj)
 
@@ -234,6 +235,9 @@ def json_handler(obj):
 
 	elif isinstance(obj, uuid.UUID):
 		return str(obj)
+	
+	elif hasattr(obj, "__value__"):  # order imporant: defer to __json__ if implemented
+		return obj.__value__()
 
 	else:
 		raise TypeError(f"""Object of type {type(obj)} with value of {obj!r} is not JSON serializable""")

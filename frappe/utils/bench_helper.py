@@ -20,7 +20,7 @@ def main():
 	click.Group(commands=commands)(prog_name="bench")
 
 
-def get_app_groups() -> dict[str, click.Group]:
+def get_app_groups() -> dict[str, click.Group | click.Command]:
 	"""Get all app groups, put them in main group "frappe" since bench is
 	designed to only handle that"""
 	commands = {}
@@ -51,8 +51,8 @@ def get_sites(site_arg: str) -> list[str]:
 		return frappe.utils.get_sites()
 	elif site_arg:
 		return [site_arg]
-	elif os.environ.get("FRAPPE_SITE"):
-		return [os.environ.get("FRAPPE_SITE")]
+	elif env_site := os.environ.get("FRAPPE_SITE"):
+		return [env_site]
 	elif default_site := frappe.get_conf().default_site:
 		return [default_site]
 	# This is not supported, just added here for warning.

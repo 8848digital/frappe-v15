@@ -14,7 +14,7 @@ import frappe.desk.form
 import frappe.desk.form.load
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, add_months, getdate, today
-
+from frappe.tests.utils import if_app_installed
 
 if TYPE_CHECKING:
 	from frappe.custom.doctype.custom_field.custom_field import CustomField
@@ -52,7 +52,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -78,7 +78,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -108,7 +108,7 @@ class TestAutoRepeat(FrappeTestCase):
 		self.assertEqual(doc.next_schedule_date, today())
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
@@ -183,7 +183,7 @@ class TestAutoRepeat(FrappeTestCase):
 		)
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
-		frappe.db.commit()
+		
 
 		new_todo = frappe.db.get_value("ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name")
 
@@ -235,6 +235,7 @@ class TestAutoRepeat(FrappeTestCase):
 		)
 		self.assertEqual(docnames[0].docstatus, 1)
 
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_purchase_invoice_TC_ACC_140(self):
 		from erpnext.accounts.doctype.payment_entry.test_payment_entry import (
 			create_purchase_invoice,
@@ -243,10 +244,10 @@ class TestAutoRepeat(FrappeTestCase):
 		custom_form = get_customize_form("Purchase Invoice")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		item = make_test_item("_Test Item")
-  
+
 		invoice = create_purchase_invoice(
 			supplier="_Test Supplier",
 			company="_Test Company",
@@ -271,19 +272,21 @@ class TestAutoRepeat(FrappeTestCase):
 		if len(docnames) > 0:
 			_pi =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
 			self.assertEqual(_pi.auto_repeat, doc.name)
-   
+
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_sales_invoice_TC_ACC_141(self):
 		from erpnext.accounts.doctype.sales_invoice.test_sales_invoice import (
 			create_sales_invoice,
 		)
+
 		from erpnext.accounts.doctype.payment_entry.test_payment_entry import make_test_item
 		custom_form = get_customize_form("Sales Invoice")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		item = make_test_item("_Test Item")
-  
+
 		invoice = create_sales_invoice(
 			customer="_Test Customer",
 			company="_Test Company",
@@ -299,7 +302,7 @@ class TestAutoRepeat(FrappeTestCase):
 			end_date=add_months(today(), 1),
 			submit_on_creation=1
 		)
-  
+
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
 		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
@@ -307,12 +310,14 @@ class TestAutoRepeat(FrappeTestCase):
 			_si =frappe.get_doc(doc.reference_doctype, docnames[0].get("name"))
 			self.assertEqual(_si.auto_repeat, doc.name)
 
+	@if_app_installed("erpnext")
 	def test_auto_repeat_with_journal_entry_TC_ACC_142(self):
+
 		from erpnext.accounts.doctype.journal_entry.test_journal_entry import make_journal_entry
 		custom_form = get_customize_form("Journal Entry")
 		custom_form.allow_auto_repeat=1
 		custom_form.run_method("save_customization")
-		frappe.db.commit()
+		
 		
 		jv=make_journal_entry(
 			account1="Cash - _TC",
@@ -336,7 +341,7 @@ class TestAutoRepeat(FrappeTestCase):
 			end_date=add_months(today(), 1),
 			submit_on_creation=1
 		)
-  
+
 		data = get_auto_repeat_entries(getdate(today()))
 		create_repeated_entries(data)
 		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
