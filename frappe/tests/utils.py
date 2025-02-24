@@ -399,3 +399,14 @@ def if_app_not_installed(app):
             return function
         return
     return wrapper
+
+
+def check_doctype_and_module(doctype):
+    if not frappe.db.exists("DocType", doctype):
+        return False
+
+    module = frappe.db.get_value("DocType", doctype, "module")
+    if not module:
+        return False
+
+    return True
