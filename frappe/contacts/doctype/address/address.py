@@ -144,14 +144,13 @@ def get_default_address(doctype: str, name: str | None, sort_key: str = "is_prim
 	"""Returns default Address name for the given doctype, name"""
 	if sort_key not in ["is_shipping_address", "is_primary_address"]:
 		return None
-
+	filters = [["disabled", "=", 0]]
+	if doctype and name:
+		filters.append(["Dynamic Link", "link_doctype", "=", doctype])
+		filters.append(["Dynamic Link", "link_name", "=", name])
 	addresses = frappe.get_all(
 		"Address",
-		filters=[
-			["Dynamic Link", "link_doctype", "=", doctype],
-			["Dynamic Link", "link_name", "=", name],
-			["disabled", "=", 0],
-		],
+		filters=filters,
 		pluck="name",
 		order_by=f"{sort_key} DESC",
 		limit=1,
@@ -267,14 +266,20 @@ def address_query(doctype, txt, searchfield, start, page_len, filters):
 	from frappe.desk.reportview import get_match_cond
 
 	doctype = "Address"
-	link_doctype = filters.pop("link_doctype")
-	link_name = filters.pop("link_name")
-
 	condition = ""
+	
+	if link_doctype := filters.pop("link_doctype", None):
+		condition += "and `tabDynamic Link`.link_doctype = %(link_doctype)s"
+	if link_name := filters.pop("link_name", None):
+		condition += "and `tabDynamic Link`.link_name = %(link_name)s"
+		
 	meta = frappe.get_meta(doctype)
 	for fieldname, value in filters.items():
 		if meta.get_field(fieldname) or fieldname in frappe.db.DEFAULT_COLUMNS:
-			condition += f" and {fieldname}={frappe.db.escape(value)}"
+			if isinstance(value, int):
+				condition += f" and {fieldname}={value}"
+			else:
+				condition += f" and {fieldname}={frappe.db.escape((value))}"
 
 	searchfields = meta.get_search_fields()
 
@@ -308,8 +313,6 @@ def address_query(doctype, txt, searchfield, start, page_len, filters):
 		join `tabDynamic Link`
 			on (`tabDynamic Link`.parent = `tabAddress`.name and `tabDynamic Link`.parenttype = 'Address')
 		where
-			`tabDynamic Link`.link_doctype = %(link_doctype)s and
-			`tabDynamic Link`.link_name = %(link_name)s and
 			ifnull(`tabAddress`.disabled, 0) = 0 and
 			({search_condition})
 			{mcond} {condition}

@@ -13,6 +13,7 @@ import frappe.utils.user
 from frappe import _
 from frappe.apps import get_default_path
 from frappe.core.doctype.activity_log.activity_log import add_authentication_log
+from frappe.desk.utils import slug
 from frappe.sessions import Session, clear_sessions, delete_session, get_expiry_in_seconds
 from frappe.translate import get_language
 from frappe.twofactor import (
@@ -97,6 +98,20 @@ class HTTPRequest:
 		frappe.local.lang = get_language()
 
 
+	def is_allowed_referrer(self):
+		referrer = frappe.get_request_header("Referer")
+		origin = frappe.get_request_header("Origin")
+		# Get the list of allowed referrers from cache or configuration
+		allowed_referrers = frappe.cache.get_value(
+			"allowed_referrers",
+			generator=lambda: frappe.conf.get("allowed_referrers", []),
+		)
+		# Check if the referrer or origin is in the allowed list
+		return (referrer and any(referrer.startswith(allowed) for allowed in allowed_referrers)) or (
+			origin and any(origin == allowed for allowed in allowed_referrers)
+		)
+
+
 class LoginManager:
 	__slots__ = ("user", "info", "full_name", "user_type", "resume")
 
@@ -157,7 +172,10 @@ class LoginManager:
 
 	def get_user_info(self):
 		self.info = frappe.get_cached_value(
-			"User", self.user, ["user_type", "first_name", "last_name", "user_image"], as_dict=1
+			"User",
+			self.user,
+			["user_type", "first_name", "last_name", "user_image", "default_workspace"],
+			as_dict=1,
 		)
 
 		self.user_type = self.info.user_type
@@ -182,7 +200,11 @@ class LoginManager:
 			frappe.local.cookie_manager.set_cookie("system_user", "yes")
 			if not resume:
 				frappe.local.response["message"] = "Logged In"
-				frappe.local.response["home_page"] = get_default_path() or "/app"
+				default_workspace = self.info.default_workspace
+				if default_workspace:
+					frappe.local.response["home_page"] = "/app/" + slug(default_workspace)
+				else:
+					frappe.local.response["home_page"] = get_default_path() or "/app"
 
 		if not resume:
 			frappe.response["full_name"] = self.full_name

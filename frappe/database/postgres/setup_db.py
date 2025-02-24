@@ -9,6 +9,19 @@ def setup_database():
 	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
 	root_conn.commit()
 	root_conn.sql("end")
+
+	# Terminate existing connections
+	terminate_query = f"""
+	SELECT pg_terminate_backend(pg_stat_activity.pid)
+	FROM pg_stat_activity
+	WHERE pg_stat_activity.datname = '{frappe.conf.db_name}'
+	AND pid <> pg_backend_pid();
+	"""
+	try:
+		root_conn.sql(terminate_query)
+	except Exception as e:
+		print(f"Error executing terminate_query: {e}")
+
 	root_conn.sql(f'DROP DATABASE IF EXISTS "{frappe.conf.db_name}"')
 
 	# If user exists, just update password
@@ -25,10 +38,10 @@ def setup_database():
 	root_conn.close()
 
 
-def bootstrap_database(db_name, verbose, source_sql=None):
-	frappe.connect(db_name=db_name)
+def bootstrap_database(verbose, source_sql=None):
+	frappe.connect()
 	import_db_from_sql(source_sql, verbose)
-	frappe.connect(db_name=db_name)
+	frappe.connect()
 
 	if "tabDefaultValue" not in frappe.db.get_tables():
 		import sys
@@ -37,8 +50,8 @@ def bootstrap_database(db_name, verbose, source_sql=None):
 
 		secho(
 			"Table 'tabDefaultValue' missing in the restored site. "
-			"This may be due to incorrect permissions or the result of a restore from a bad backup file. "
-			"Database not installed correctly.",
+			"This happens when the backup fails to restore. Please check that the file is valid\n"
+			"Do go through the above output to check the exact error message from MariaDB",
 			fg="red",
 		)
 		sys.exit(1)

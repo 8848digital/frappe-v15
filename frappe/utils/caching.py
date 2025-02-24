@@ -22,10 +22,14 @@ def __generate_request_cache_key(args: tuple, kwargs: dict):
 
 
 def request_cache(func: Callable) -> Callable:
-	"""Decorator to cache function calls mid-request. Cache is stored in
-	frappe.local.request_cache. The cache only persists for the current request
-	and is cleared when the request is over. The function is called just once
-	per request with the same set of (kw)arguments.
+	"""
+	Decorator to cache function calls mid-request.
+	Cache is stored in `frappe.local.request_cache`.
+	The cache only persists for the current request and is cleared when the request is over.
+	The function is called just once per request with the same set of (kw)arguments.
+	---
+	Usage:
+	```
 
 	Usage:
 	        from frappe.utils.caching import request_cache
@@ -33,12 +37,13 @@ def request_cache(func: Callable) -> Callable:
 	        @request_cache
 	        def calculate_pi(num_terms=0):
 	                import math, time
-	                print(f"{num_terms = }")
-	                time.sleep(10)
-	                return math.pi
 
-	        calculate_pi(10) # will calculate value
-	        calculate_pi(10) # will return value from cache
+	         print(f"{num_terms = }")
+	            time.sleep(10)
+	            return math.pi
+	        calculate_pi(10)  # will calculate value
+	        calculate_pi(10)  # will return value from cache
+	```
 	"""
 
 	@wraps(func)
@@ -64,8 +69,10 @@ def request_cache(func: Callable) -> Callable:
 
 
 def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
-	"""Decorator to cache method calls across requests. The cache is stored in
-	frappe.utils.caching._SITE_CACHE. The cache persists on the parent process.
+	"""
+	Decorator to cache method calls across requests.
+	The cache is stored in `frappe.utils.caching._SITE_CACHE`.
+	The cache persists on the parent process.
 	It offers a light-weight cache for the current process without the additional
 	overhead of serializing / deserializing Python objects.
 
@@ -78,8 +85,8 @@ def site_cache(ttl: int | None = None, maxsize: int | None = None) -> Callable:
 	        @site_cache
 	        def calculate_pi():
 	                import math, time
-	                precision = get_precision("Math Constant", "Pi") # depends on site data
-	                return round(math.pi, precision)
+	            precision = get_precision("Math Constant", "Pi") # depends on site data
+	            return round(math.pi, precision)
 
 	        calculate_pi(10) # will calculate value
 	        calculate_pi(10) # will return value from cache

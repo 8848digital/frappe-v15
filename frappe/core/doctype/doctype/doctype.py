@@ -363,11 +363,11 @@ class DocType(Document):
 
 					if frappe.db.db_type == "postgres":
 						update_query = """
-							UPDATE `tab{doctype}`
+							UPDATE `tab{doctype}` AS target
 							SET `{fieldname}` = source.`{source_fieldname}`
-							FROM `tab{link_doctype}` as source
-							WHERE `{link_fieldname}` = source.name
-							AND ifnull(`{fieldname}`, '')=''
+							FROM `tab{link_doctype}` AS source
+							WHERE `target`.`{link_fieldname}` = `source`.`name`
+							AND (`target`.`{fieldname}` IS NULL OR `target`.`{fieldname}` = 0)
 						"""
 					else:
 						update_query = """
@@ -395,9 +395,9 @@ class DocType(Document):
 				frappe.db.sql(query)
 
 	def validate_document_type(self):
-		if self.document_type == "Transaction":
+		if self.document_type == "Transaction":  # type: ignore[comparison-overlap]
 			self.document_type = "Document"
-		if self.document_type == "Master":
+		if self.document_type == "Master":  # type: ignore[comparison-overlap]
 			self.document_type = "Setup"
 
 	def validate_website(self):

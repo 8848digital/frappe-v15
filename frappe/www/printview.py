@@ -26,13 +26,21 @@ standard_format = "templates/print_formats/standard.html"
 def get_context(context):
 	"""Build context for print"""
 	if not ((frappe.form_dict.doctype and frappe.form_dict.name) or frappe.form_dict.doc):
-		return {
-			"body": f"""
-				<h1>Error</h1>
-				<p>Parameters doctype and name required</p>
-				<pre>{escape_html(frappe.as_json(frappe.form_dict, indent=2))}</pre>
-				"""
-		}
+		return PrintContext(
+			print_style="",
+			comment="",
+			title="Error",
+			lang="en",
+			layout_direction="ltr",
+			doctype="",
+			name="",
+			key="",
+			body=f"""
+			<h1>Error</h1>
+			<p>Parameters doctype and name required</p>
+			<pre>{escape_html(frappe.as_json(frappe.form_dict, indent=2))}</pre>
+			""",
+					)
 
 	if frappe.form_dict.doc:
 		doc = frappe.form_dict.doc
@@ -74,6 +82,9 @@ def get_context(context):
 		"doctype": frappe.form_dict.doctype,
 		"name": frappe.form_dict.name,
 		"key": frappe.form_dict.get("key"),
+		"print_format": getattr(print_format, "name", None),
+		"letterhead": letterhead,
+		"no_letterhead": frappe.form_dict.no_letterhead,
 	}
 
 
@@ -293,8 +304,8 @@ def get_html_and_style(
 	trigger_print: bool = False,
 	style: str | None = None,
 	settings: str | None = None,
-):
-	"""Returns `html` and `style` of print format, used in PDF etc"""
+) -> dict[str, str | None]:
+	"""Return `html` and `style` of print format, used in PDF etc."""
 
 	if isinstance(name, str):
 		document = frappe.get_doc(doc, name)
@@ -347,15 +358,18 @@ def get_rendered_raw_commands(doc: str, name: str | None = None, print_format: s
 
 
 def validate_print_permission(doc):
+	if frappe.has_website_permission(doc):
+		return
+	
 	for ptype in ("read", "print"):
-		if frappe.has_permission(doc.doctype, ptype, doc) or frappe.has_website_permission(doc):
+		if frappe.has_permission(doc.doctype, ptype, doc):
 			return
 
-	key = frappe.form_dict.key
-	if key and isinstance(key, str):
+	if (key := frappe.form_dict.key) and isinstance(key, str):
 		validate_key(key, doc)
-	else:
-		raise frappe.PermissionError(_("You do not have permission to view this document"))
+		return
+	
+	frappe.throw(_("{0} {1} not found").format(_(doc.doctype), doc.name), frappe.DoesNotExistError)
 
 
 def validate_key(key, doc):

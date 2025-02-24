@@ -27,7 +27,7 @@ class Contact(Document):
 		designation: DF.Data | None
 		email_id: DF.Data | None
 		email_ids: DF.Table[ContactEmail]
-		first_name: DF.Data | None
+		first_name: DF.Data
 		full_name: DF.Data | None
 		gender: DF.Link | None
 		google_contacts: DF.Link | None
@@ -127,7 +127,7 @@ class Contact(Document):
 			return
 
 		if len([email.email_id for email in self.email_ids if email.is_primary]) > 1:
-			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold("Email ID")))
+			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold(_("Email ID"))))
 
 		if len(self.email_ids) == 1:
 			self.email_ids[0].is_primary = 1
@@ -271,9 +271,9 @@ def contact_query(doctype, txt, searchfield, start, page_len, filters):
 			`tabContact`.`{searchfield}` like %(txt)s
 			{get_match_cond(doctype)}
 		order by
-			if(locate(%(_txt)s, `tabContact`.full_name), locate(%(_txt)s, `tabContact`.company_name), 99999),
+			(case when position(%(_txt)s in `tabContact`.full_name) > 0 then position(%(_txt)s in `tabContact`.full_name) when position(%(_txt)s in `tabContact`.company_name) > 0 then position(%(_txt)s in `tabContact`.company_name) else 99999 end),
 			`tabContact`.idx desc, `tabContact`.full_name
-		limit %(start)s, %(page_len)s """,
+		limit %(page_len)s offset %(start)s""",
 		{
 			"txt": "%" + txt + "%",
 			"_txt": txt.replace("%", ""),
@@ -332,9 +332,13 @@ def get_contact_with_phone_number(number):
 	return contacts[0].parent if contacts else None
 
 
-def get_contact_name(email_id):
-	contact = frappe.get_all("Contact Email", filters={"email_id": email_id}, fields=["parent"], limit=1)
-	return contact[0].parent if contact else None
+def get_contact_name(email_id: str) -> str | None:
+	"""Return the contact ID for the given email ID."""
+	for contact_id in frappe.get_all(
+		"Contact Email", filters={"email_id": email_id, "parenttype": "Contact"}, pluck="parent"
+	):
+		if frappe.db.exists("Contact", contact_id):
+			return contact_id
 
 
 def get_contacts_linking_to(doctype, docname, fields=None):
