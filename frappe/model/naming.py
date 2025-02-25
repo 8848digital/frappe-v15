@@ -327,11 +327,11 @@ def parse_naming_series(
 		if e.startswith("#"):
 			if not series_set:
 				digits = len(e)
-				part = number_generator(name, digits)
 				if key:
 					part = number_generator(key, digits)
 				else:
 					part = number_generator(name, digits)
+
 				series_set = True
 		elif e == "YY":
 			part = today.strftime("%y")
@@ -575,9 +575,7 @@ def _format_autoname(autoname: str, doc):
 			key = patterned_string[: patterned_string.find(param)]
 
 			return parse_naming_series([param[1:-1]], doc=doc, key=key)
-
 		return get_param_value
-
 	# Replace braced params with their parsed value
 	autoname_value = BRACED_PARAMS_WORD_PATTERN.sub(get_param_value_for_word_match, autoname_value)
 	return BRACED_PARAMS_HASH_PATTERN.sub(get_param_value_for_hash_match(autoname_value), autoname_value)
