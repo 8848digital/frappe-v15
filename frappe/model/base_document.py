@@ -481,7 +481,6 @@ class BaseDocument:
 		no_default_fields=False,
 		convert_dates_to_str=False,
 		no_child_table_fields=False,
-		no_private_properties=False,
 	) -> dict:
 		doc = self.get_valid_dict(convert_dates_to_str=convert_dates_to_str, ignore_nulls=no_nulls)
 		doc["doctype"] = self.doctype
@@ -494,7 +493,6 @@ class BaseDocument:
 					no_nulls=no_nulls,
 					no_default_fields=no_default_fields,
 					no_child_table_fields=no_child_table_fields,
-					no_private_properties=no_private_properties,
 				)
 				for d in children
 			]
@@ -509,17 +507,16 @@ class BaseDocument:
 				if key in doc:
 					del doc[key]
 
-		if not no_private_properties:
-			for key in (
-				"_user_tags",
-				"__islocal",
-				"__onload",
-				"_liked_by",
-				"__run_link_triggers",
-				"__unsaved",
-			):
-				if value := getattr(self, key, None):
-					doc[key] = value
+		for key in (
+			"_user_tags",
+			"__islocal",
+			"__onload",
+			"_liked_by",
+			"__run_link_triggers",
+			"__unsaved",
+		):
+			if value := getattr(self, key, None):
+				doc[key] = value
 
 		return doc
 

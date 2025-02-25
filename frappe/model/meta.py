@@ -40,7 +40,6 @@ from frappe.model.workflow import get_workflow_name
 from frappe.modules import load_doctype_module
 from frappe.types import DocRef
 from frappe.utils import cast, cint, cstr
-from frappe.utils.data import add_to_date, get_datetime
 
 DEFAULT_FIELD_LABELS = {
 	"name": _lt("ID"),
@@ -56,11 +55,6 @@ DEFAULT_FIELD_LABELS = {
 	"_assign": _lt("Assigned To"),
 }
 
-# When number of rows in a table exceeds this number, we disable certain features automatically.
-# This is done to avoid hammering the site with unnecessary requests that are just meant for
-# improving UX.
-LARGE_TABLE_SIZE_THRESHOLD = 100_000
-LARGE_TABLE_RECENCY_THRESHOLD = 30  # days
 
 def get_meta(doctype, cached=True) -> "Meta":
 	cached = cached and isinstance(doctype, str)
@@ -148,7 +142,6 @@ class Meta(Document):
 		self.get_valid_columns()
 		self.set_custom_permissions()
 		self.add_custom_links_and_actions()
-		self.check_if_large_table()
 
 	def as_dict(self, no_nulls=False):
 		def serialize(doc):
@@ -439,20 +432,6 @@ class Meta(Document):
 
 				self.set(fieldname, new_list)
 
-	def check_if_large_table(self):
-		"""Apply some heuristics to detect large tables.
-
-		UI code can use this information to adapt accordingly."""
-		# Note: `modified` should be used in older versions.
-		self.is_large_table = False
-		if self.istable or not frappe.db.table_exists(self.name):  # During install, new migrate
-			return
-
-		if frappe.db.estimate_count(self.name) > LARGE_TABLE_SIZE_THRESHOLD:
-			recent_change = frappe.db.get_value(self.name, {}, "modified", order_by="modified desc")
-			if get_datetime(recent_change) > add_to_date(None, days=-1 * LARGE_TABLE_RECENCY_THRESHOLD):
-				self.is_large_table = True
-				
 	def init_field_caches(self):
 		# field map
 		self._fields = {field.fieldname: field for field in self.fields}

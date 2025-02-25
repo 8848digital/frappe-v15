@@ -623,11 +623,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 
 	set_filters(filters) {
 		this.filters.map((f) => {
-			if (f.fieldtype == "MultiSelectList") {
-				f.set_value(filters[f.fieldname]);
-			} else {
-				f.set_input(filters[f.fieldname]);
-			}
+			f.set_input(filters[f.fieldname]);
 		});
 	}
 
