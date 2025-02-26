@@ -16,6 +16,7 @@ import frappe.utils.scheduler
 from frappe.model.naming import revert_series_if_last
 from frappe.modules import get_module_name, load_doctype_module
 from frappe.utils import cint
+from frappe.tests.utils import check_doctype_and_module
 
 unittest_runner = unittest.TextTestRunner
 SLOW_TEST_THRESHOLD = 2
@@ -331,7 +332,7 @@ def _add_test(app, path, filename, verbose, test_suite=None):
 
 
 def make_test_records(doctype, verbose=0, force=False, commit=False):
-	if frappe.flags.skip_test_records:
+	if frappe.flags.skip_test_records or not check_doctype_and_module(doctype):
 		return
 
 	for options in get_dependencies(doctype):
@@ -358,6 +359,7 @@ def get_modules(doctype):
 
 def get_dependencies(doctype):
 	module, test_module = get_modules(doctype)
+ 
 	meta = frappe.get_meta(doctype)
 	link_fields = meta.get_link_fields()
 

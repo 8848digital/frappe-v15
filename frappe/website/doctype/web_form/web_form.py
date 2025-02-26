@@ -41,7 +41,7 @@ class WebForm(WebsiteGenerator):
 		breadcrumbs: DF.Code | None
 		button_label: DF.Data | None
 		client_script: DF.Code | None
-		condition: DF.Code | None
+		condition_json: DF.SmallText | None
 		custom_css: DF.Code | None
 		doc_type: DF.Link
 		introduction_text: DF.TextEditor | None
