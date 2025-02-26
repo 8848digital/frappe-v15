@@ -65,6 +65,7 @@ class DatabaseQuery:
 		self.permission_map = {}
 		self.shared = []
 		self._fetch_shared_documents = False
+		self.is_invalid_input = False
 
 	@property
 	def doctype_meta(self):
@@ -237,8 +238,8 @@ class DatabaseQuery:
 		# appear in the order by and group by clause
 		if frappe.db.db_type == "postgres" and args.order_by and args.group_by:
 			args = self.prepare_select_args(args)
-		# if self.is_invalid_input:
-		# 	return []
+		if self.is_invalid_input:
+			return []
 		
 		query = """select {fields}
 			from {tables}
