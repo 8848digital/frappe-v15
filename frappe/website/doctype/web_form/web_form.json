@@ -26,13 +26,14 @@
   "allow_multiple",
   "allow_delete",
   "form_settings_section",
+  "column_break_hhec",
   "allow_incomplete",
   "allow_comments",
   "allow_print",
   "print_format",
   "max_attachment_size",
   "show_attachments",
-  "column_break_hhec",
+  "column_break_hhecc",
   "allowed_embedding_domains",
   "condition_section",
   "condition_description",
@@ -373,7 +374,7 @@
    "description": "If enabled, all responses on the web form will be submitted anonymously",
    "fieldname": "anonymous",
    "fieldtype": "Check",
-   "label": "Anonymous responses"
+   "label": "Anonymous Responses"
   },
   {
    "fieldname": "condition_description",
@@ -409,13 +410,17 @@
   {
    "fieldname": "column_break_hhec",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_hhecc",
+   "fieldtype": "Column Break"
   }
  ],
  "has_web_view": 1,
  "icon": "icon-edit",
  "is_published_field": "published",
  "links": [],
- "modified": "2025-01-17 17:09:19.680233",
+ "modified": "2025-02-21 21:01:47.619481",
  "modified_by": "Administrator",
  "module": "Website",
  "name": "Web Form",
