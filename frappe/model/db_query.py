@@ -65,6 +65,7 @@ class DatabaseQuery:
 		self.permission_map = {}
 		self.shared = []
 		self._fetch_shared_documents = False
+		self.is_invalid_input = False
 
 	@property
 	def doctype_meta(self):
