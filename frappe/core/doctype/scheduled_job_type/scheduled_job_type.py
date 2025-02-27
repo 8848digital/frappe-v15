@@ -252,7 +252,7 @@ def insert_single_event(frequency: str, event: str, cron_format: str | None = No
 	if not frappe.db.exists("Scheduled Job Type", {"method": event, "frequency": frequency, **cron_expr}):
 		savepoint = "scheduled_job_type_creation"
 		try:
-			frappe.db.savepoint(savepoint)
+			frappe.db.savepoint("scheduled_job_type_creation")
 			doc.insert()
 		except frappe.DuplicateEntryError:
 			frappe.db.rollback()
