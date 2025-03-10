@@ -225,6 +225,11 @@ class DatabaseQuery:
 				else:
 					modified_fields.append(part)
 			args.fields = ",".join(modified_fields)
+			args.conditions = re.sub(
+				r"coalesce\((`?\w+`?\.`?docstatus`?),\s*''\)",
+				r"coalesce(\1, 0)",
+				args.conditions
+			)
 
 		if args.conditions:
 			args.conditions = "where " + args.conditions
