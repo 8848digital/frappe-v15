@@ -521,7 +521,7 @@ class TestDocumentWebView(FrappeTestCase):
 
 		# with invalid key
 		invalid_key_url = f"/ToDo/{todo.name}?key=INVALID_KEY"
-		self.assertEqual(self.get(invalid_key_url).status, "401 UNAUTHORIZED")
+		self.assertEqual(self.get(invalid_key_url).status, "403 FORBIDDEN")
 
 		# expire the key
 		document_key_doc = frappe.get_doc("Document Share Key", {"key": document_key})
