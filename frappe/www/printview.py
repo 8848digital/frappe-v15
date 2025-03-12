@@ -111,6 +111,9 @@ def get_rendered_template(
 	trigger_print: bool = False,
 	settings=None,
 ):
+	if not frappe.flags.ignore_print_permissions:
+		validate_print_permission(doc)
+
 	print_settings = frappe.get_single("Print Settings").as_dict()
 	print_settings.update(settings or {})
 
