@@ -653,7 +653,10 @@ class File(Document):
 		if duplicate_file:
 			file_doc: "File" = frappe.get_cached_doc("File", duplicate_file.name)
 			if file_doc.exists_on_disk():
-				if self.make_file_url() == duplicate_file.file_url:
+				if self.exists_on_disk():
+					if not self.file_url:
+						self.file_url = duplicate_file.file_url
+				else:
 					self.file_url = duplicate_file.file_url
 				file_exists = True
 
@@ -671,23 +674,16 @@ class File(Document):
 			return self.save_file_on_filesystem()
 
 	def save_file_on_filesystem(self):
+		safe_file_name = re.sub(r"[/\\%?#]", "_", self.file_name)
 		if self.is_private:
-			self.file_url = f"/private/files/{self.file_name}"
+			self.file_url = f"/private/files/{safe_file_name}"
 		else:
-			self.file_url = f"/files/{self.file_name}"
+			self.file_url = f"/files/{safe_file_name}"
 
 		fpath = self.write_file()
 
 		return {"file_name": os.path.basename(fpath), "file_url": self.file_url}
 
-	def make_file_url(self):
-		file_url = None
-		safe_file_name = re.sub(r"[/\\%?#]", "_", self.file_name)
-		if self.is_private:
-			file_url = f"/private/files/{safe_file_name}"
-		else:
-			file_url = f"/files/{safe_file_name}"
-		return file_url
 
 	def check_max_file_size(self):
 		from frappe.core.api.file import get_max_file_size
