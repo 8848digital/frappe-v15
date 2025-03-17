@@ -2,7 +2,7 @@
 # License: MIT. See LICENSE
 import datetime
 import json
-
+import threading
 import frappe
 import frappe.desk.query_report
 from frappe import _, scrub
@@ -157,17 +157,25 @@ class Report(Document):
 		res = []
 
 		start_time = datetime.datetime.now()
+		prepared_report_watcher = None
+		if not self.prepared_report:
+			prepared_report_watcher = threading.Timer(
+				interval=threshold,
+				function=enable_prepared_report,
+				kwargs={"report": self.name, "site": frappe.local.site},
+			)
+			prepared_report_watcher.start()
 
 		# The JOB
-		if self.is_standard == "Yes":
-			res = self.execute_module(filters)
-		else:
-			res = self.execute_script(filters)
+		try:
+			if self.is_standard == "Yes":
+				res = self.execute_module(filters)
+			else:
+				res = self.execute_script(filters)
+		finally:
+			prepared_report_watcher and prepared_report_watcher.cancel()
 
-		# automatically set as prepared
 		execution_time = (datetime.datetime.now() - start_time).total_seconds()
-		if execution_time > threshold and not self.prepared_report and not frappe.conf.developer_mode:
-			frappe.enqueue(enable_prepared_report, report=self.name)
 
 		frappe.cache.hset("report_execution_time", self.name, execution_time)
 
