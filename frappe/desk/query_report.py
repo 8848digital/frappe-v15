@@ -111,10 +111,9 @@ def generate_report_result(
 	if cint(report.add_total_row) and result and not skip_total_row:
 		result = add_total_row(result, columns, is_tree=is_tree, parent_field=parent_field)
 
-	if isinstance(filters, dict):
-		translate_data = filters.get("translate_data")
-		if translate_data:
-			result = translate_report_data(result)
+	if isinstance(filters, dict) and filters.get("translate_data"):
+		result = translate_report_data(result)
+
 	return {
 		"result": result,
 		"columns": columns,
@@ -827,12 +826,9 @@ def get_custom_script(report_name):
 	return all_filtetrs + ']'
 
 
-def translate_report_data(data):
-	# remove total row
-	total_row = data[-1]
-	data = data[:-1]
-	for d in data:
+def translate_report_data(data, total_row):
+	for d in data[:-1] if total_row else data:
 		for field, value in d.items():
-			d[field] = _(value)
-	data.append(total_row)
+			if isinstance(value, str):
+				d[field] = _(value)
 	return data
