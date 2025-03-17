@@ -173,6 +173,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		frappe.run_serially([
 			() => this.get_report_doc(),
 			() => this.get_report_settings(),
+			() => this.add_standard_checkbox(),
 			() => this.setup_progress_bar(),
 			() => this.setup_page_head(),
 			() => this.refresh_report(route_options),
@@ -1914,7 +1915,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		this.data.forEach((row) => {
 			if (column[0].fieldname.includes("-")) {
 				row[column_field + "-" + frappe.scrub(new_column_data.doctype)] =
-				custom_data[row[new_column_data.fieldname]];
+					custom_data[row[new_column_data.fieldname]];
 			} else {
 				row[column_field] = custom_data[row[new_column_data.fieldname]];
 			}
@@ -2110,5 +2111,15 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	// backward compatibility
 	get get_values() {
 		return this.get_filter_values;
+	}
+
+	add_standard_checkbox() {
+		if (frappe.boot.lang == "en") return;
+		let filter_config = {
+			fieldname: "translate_data",
+			fieldtype: "Check",
+			label: __("Translate Data"),
+		};
+		this.report_settings.filters.push(filter_config);
 	}
 };
