@@ -828,8 +828,10 @@ def get_custom_script(report_name):
 
 def translate_report_data(data):
 	# remove total row
+	total_row = data[-1]
 	data = data[:-1]
 	for d in data:
 		for field, value in d.items():
 			d[field] = _(value)
+	data.append(total_row)
 	return data
