@@ -1759,6 +1759,8 @@ def call(fn: str | Callable, *args, **kwargs):
 
 	return fn(*args, **newargs)
 
+_cached_inspect_signature = functools.lru_cache(inspect.signature)
+
 
 def get_newargs(fn: Callable, kwargs: dict[str, Any]) -> dict[str, Any]:
 	"""Remove any kwargs that are not supported by the function.
@@ -1775,7 +1777,7 @@ def get_newargs(fn: Callable, kwargs: dict[str, Any]) -> dict[str, Any]:
 	# Ref: https://docs.python.org/3/library/inspect.html#inspect.Parameter.kind
 	varkw_exist = False
 
-	signature = inspect.signature(fn)
+	signature = _cached_inspect_signature(fn)
 	fnargs = list(signature.parameters)
 
 	for param_name, parameter in signature.parameters.items():
