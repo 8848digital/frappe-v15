@@ -364,14 +364,12 @@ def export_query():
 
 def format_fields(data: frappe._dict) -> None:
 	for i, col in enumerate(data.columns):
-		if col.get("fieldtype") != "Duration":
-			continue
-
-		for row in data.result:
-			index = col.get("fieldname") if isinstance(row, dict) else i
-			if row[index]:
-				row[index] = format_duration(row[index])
-		if col.get("fieldtype") == "Currency" and col.get("precision"):
+		if col.get("fieldtype") == "Duration":
+			for row in data.result:
+				index = col.get("fieldname") if isinstance(row, dict) else i
+				if row[index]:
+					row[index] = format_duration(row[index])
+		elif col.get("fieldtype") == "Currency" and col.get("precision"):
 			for row in data.result:
 				index = col.get("fieldname") if isinstance(row, dict) else i
 				if row[index]:
