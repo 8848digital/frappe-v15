@@ -20,6 +20,7 @@
   "is_calendar_and_gantt",
   "editable_grid",
   "quick_entry",
+  "grid_page_length",
   "cb01",
   "track_changes",
   "track_seen",
