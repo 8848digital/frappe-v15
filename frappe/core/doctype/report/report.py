@@ -3,7 +3,6 @@
 import datetime
 import json
 import threading
-
 import frappe
 import frappe.desk.query_report
 from frappe import _, scrub
@@ -30,6 +29,7 @@ class Report(Document):
 		from frappe.types import DF
 
 		add_total_row: DF.Check
+		add_translate_data: DF.Check
 		columns: DF.Table[ReportColumn]
 		disabled: DF.Check
 		filters: DF.Table[ReportFilter]
@@ -166,16 +166,18 @@ class Report(Document):
 				kwargs={"report": self.name, "site": frappe.local.site},
 			)
 			prepared_report_watcher.start()
-   
-		# The JOB
-		if self.is_standard == "Yes":
-			res = self.execute_module(filters)
-		else:
-			res = self.execute_script(filters)
 
-		prepared_report_watcher and prepared_report_watcher.cancel()
+		# The JOB
+		try:
+			if self.is_standard == "Yes":
+				res = self.execute_module(filters)
+			else:
+				res = self.execute_script(filters)
+		finally:
+			prepared_report_watcher and prepared_report_watcher.cancel()
+
 		execution_time = (datetime.datetime.now() - start_time).total_seconds()
-  
+
 		frappe.cache.hset("report_execution_time", self.name, execution_time)
 
 		return res
@@ -422,9 +424,5 @@ def get_group_by_column_label(args, meta):
 	return label
 
 
-def enable_prepared_report(report: str, site: str):
-	frappe.init(site)
-	frappe.connect()
+def enable_prepared_report(report: str):
 	frappe.db.set_value("Report", report, "prepared_report", 1)
-	frappe.db.commit()
-	frappe.destroy()

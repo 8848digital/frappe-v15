@@ -189,6 +189,8 @@ def execute_event(doc: str):
 
 def run_scheduled_job(job_type: str):
 	"""This is a wrapper function that runs a hooks.scheduler_events method"""
+	if frappe.conf.maintenance_mode:
+		raise frappe.InReadOnlyMode("Scheduled jobs can't run in maintenance mode.")
 	try:
 		frappe.get_doc("Scheduled Job Type", dict(method=job_type)).execute()
 	except Exception:
@@ -252,10 +254,12 @@ def insert_single_event(frequency: str, event: str, cron_format: str | None = No
 	if not frappe.db.exists("Scheduled Job Type", {"method": event, "frequency": frequency, **cron_expr}):
 		savepoint = "scheduled_job_type_creation"
 		try:
-			frappe.db.savepoint(savepoint)
+			frappe.db.savepoint("scheduled_job_type_creation")
+			frappe.db.sql('Delete FROM "tabScheduled Job Type" WHERE method = %s',(event))
+			frappe.db.commit()
 			doc.insert()
 		except frappe.DuplicateEntryError:
-			frappe.db.rollback(save_point=savepoint)
+			frappe.db.rollback()
 			doc.delete()
 			doc.insert()
 

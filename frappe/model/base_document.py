@@ -79,7 +79,7 @@ def import_controller(doctype):
 
 	module_name = "Core"
 	if doctype not in DOCTYPES_FOR_DOCTYPE:
-		doctype_info = frappe.db.get_value("DocType", doctype, fieldname="*")
+		doctype_info = frappe.db.get_value("DocType", doctype, ("module", "custom", "is_tree"), as_dict=True)
 		if doctype_info:
 			if doctype_info.custom:
 				return NestedSet if doctype_info.is_tree else Document
@@ -183,9 +183,9 @@ class BaseDocument:
 		if "name" in d:
 			self.name = d["name"]
 
-		ignore_children = hasattr(self, "flags") and self.flags.ignore_children
+		as_value = not self._table_fieldnames or self.flags.get("ignore_children", False)
 		for key, value in d.items():
-			self.set(key, value, as_value=ignore_children)
+			self.set(key, value, as_value=as_value)
 
 		return self
 
@@ -328,8 +328,8 @@ class BaseDocument:
 		value.parenttype = self.doctype
 		value.parentfield = key
 
-		if value.docstatus is None:
-			value.docstatus = DocStatus.draft()
+		if value.__dict__.get("docstatus") is None:
+			value.__dict__["docstatus"] = DocStatus.DRAFT
 
 		if not getattr(value, "idx", None):
 			if table := getattr(self, key, None):
@@ -390,8 +390,7 @@ class BaseDocument:
 							eval_globals=get_safe_globals(),
 							eval_locals={"doc": self},
 						)
-
-				if isinstance(value, list) and df.fieldtype not in table_fields:
+				if isinstance(str(value), list) and df.fieldtype not in table_fields:
 					frappe.throw(_("Value for {0} cannot be a list").format(_(df.label, context=df.parent)))
 
 				if df.fieldtype == "Check":
@@ -443,7 +442,7 @@ class BaseDocument:
 
 			if self.__dict__[key] is None:
 				if key == "docstatus":
-					self.docstatus = DocStatus.draft()
+					self.__dict__[key] = DocStatus.DRAFT
 				elif key == "idx":
 					self.__dict__[key] = 0
 
@@ -468,12 +467,21 @@ class BaseDocument:
 		return self.get("__islocal")
 
 	@property
-	def docstatus(self):
-		return DocStatus(cint(self.get("docstatus")))
+	def docstatus(self) -> DocStatus:
+		value = self.__dict__.get("docstatus")
+
+		if not isinstance(value, DocStatus):
+			value = DocStatus(value or 0)
+			self.__dict__["docstatus"] = value
+
+		return value
 
 	@docstatus.setter
-	def docstatus(self, value):
-		self.__dict__["docstatus"] = DocStatus(cint(value))
+	def docstatus(self, value) -> None:
+		if not isinstance(value, DocStatus):
+			value = DocStatus(value or 0)
+
+		self.__dict__["docstatus"] = value
 
 	def as_dict(
 		self,
@@ -481,7 +489,6 @@ class BaseDocument:
 		no_default_fields=False,
 		convert_dates_to_str=False,
 		no_child_table_fields=False,
-		no_private_properties=False,
 	) -> dict:
 		doc = self.get_valid_dict(convert_dates_to_str=convert_dates_to_str, ignore_nulls=no_nulls)
 		doc["doctype"] = self.doctype
@@ -494,7 +501,6 @@ class BaseDocument:
 					no_nulls=no_nulls,
 					no_default_fields=no_default_fields,
 					no_child_table_fields=no_child_table_fields,
-					no_private_properties=no_private_properties,
 				)
 				for d in children
 			]
@@ -509,17 +515,16 @@ class BaseDocument:
 				if key in doc:
 					del doc[key]
 
-		if not no_private_properties:
-			for key in (
-				"_user_tags",
-				"__islocal",
-				"__onload",
-				"_liked_by",
-				"__run_link_triggers",
-				"__unsaved",
-			):
-				if value := getattr(self, key, None):
-					doc[key] = value
+		for key in (
+			"_user_tags",
+			"__islocal",
+			"__onload",
+			"_liked_by",
+			"__run_link_triggers",
+			"__unsaved",
+		):
+			if value := getattr(self, key, None):
+				doc[key] = value
 
 		return doc
 
@@ -772,8 +777,8 @@ class BaseDocument:
 				elif df.fieldtype in ("Float", "Currency", "Percent"):
 					self.set(df.fieldname, flt(self.get(df.fieldname)))
 
-		if self.docstatus is not None:
-			self.docstatus = DocStatus(cint(self.docstatus))
+		# calling the docstatus property does the job
+		self.docstatus
 
 	def _get_missing_mandatory_fields(self):
 		"""Get mandatory fields that do not have any values"""
@@ -901,7 +906,7 @@ class BaseDocument:
 						df.fieldname != "amended_from"
 						and (is_submittable or self.meta.is_submittable)
 						and frappe.get_meta(doctype).is_submittable
-						and cint(frappe.db.get_value(doctype, docname, "docstatus")) == DocStatus.cancelled()
+						and DocStatus(frappe.db.get_value(doctype, docname, "docstatus") or 0).is_cancelled()
 					):
 						cancelled_links.append((df.fieldname, docname, get_msg(df, docname)))
 
