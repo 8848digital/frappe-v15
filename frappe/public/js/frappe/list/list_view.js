@@ -26,7 +26,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.show();
 		const meta = frappe.get_meta(this.doctype);
 		this.is_large_table = meta?.is_large_table;
-		this.applied_recency_filters = false;
 		this.debounced_refresh = frappe.utils.debounce(
 			this.process_document_refreshes.bind(this),
 			2000
