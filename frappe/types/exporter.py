@@ -95,7 +95,7 @@ class TypeExporter:
 
 	def _generate_code(self):
 		for field in self.doc.fields:
-			if iskeyword(field.fieldname):
+			if field.is_virtual and not field.options:
 				continue
 			if python_type := self._map_fieldtype(field):
 				self.field_types[field.fieldname] = python_type
