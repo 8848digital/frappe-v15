@@ -43,8 +43,10 @@ def savedocs(doc, action):
 	send_updated_docs(doc)
 
 	add_data_to_monitor(doctype=doc.doctype, action=action)
-	status_message = "Submitted" if doc.docstatus.is_submitted() else "Saved"
-	frappe.msgprint(frappe._(status_message), indicator="green", alert=True)
+	if doc.docstatus.is_submitted():
+		frappe.msgprint(frappe._("Submitted"), indicator="green", alert=True)
+	else:
+		frappe.msgprint(frappe._("Saved"), indicator="green", alert=True)
 
 
 @frappe.whitelist(methods=["POST", "PUT"])
