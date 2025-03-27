@@ -16,6 +16,7 @@ import frappe.translate
 from frappe.cache_manager import clear_global_cache
 from frappe.core.doctype.language.language import sync_languages
 from frappe.core.doctype.scheduled_job_type.scheduled_job_type import sync_jobs
+from frappe.core.doctype.system_settings.system_settings import sync_system_settings
 from frappe.database.schema import add_column
 from frappe.deferred_insert import save_to_db as flush_deferred_inserts
 from frappe.desk.notifications import clear_notifications
@@ -149,6 +150,10 @@ class SiteMigration:
 
 		frappe.get_single("Portal Settings").sync_menu()
 		frappe.get_single("Installed Applications").update_versions()
+
+
+		print("Syncing System Settings")
+		sync_system_settings()
 
 		print("Executing `after_migrate` hooks...")
 
