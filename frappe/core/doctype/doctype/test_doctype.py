@@ -812,6 +812,30 @@ class TestDocType(FrappeTestCase):
 		self.assertEqual(get_format(compressed_dt), "COMPRESSED")
 		self.assertEqual(get_format(dynamic_dt), "DYNAMIC")
 
+	def test_row_compression(self):
+		if frappe.db.db_type != "mariadb":
+			return
+
+		compressed_dt = new_doctype(row_format="Compressed").insert().name
+		dynamic_dt = new_doctype().insert().name
+
+		information_schema = frappe.qb.Schema("information_schema")
+
+		def get_format(dt):
+			return (
+				frappe.qb.from_(information_schema.tables)
+				.select("row_format")
+				.where(
+					(information_schema.tables.table_schema == frappe.conf.db_name)
+					& (information_schema.tables.table_name == get_table_name(dt))
+				)
+				.run()[0][0]
+				.upper()
+			)
+
+		self.assertEqual(get_format(compressed_dt), "COMPRESSED")
+		self.assertEqual(get_format(dynamic_dt), "DYNAMIC")
+
 
 def new_doctype(
 	name: str | None = None,
