@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: frappe\n"
 "Report-Msgid-Bugs-To: developers@frappe.io\n"
 "POT-Creation-Date: 2025-03-20 13:58+0000\n"
-"PO-Revision-Date: 2025-06-02 05:14\n"
+"PO-Revision-Date: 2025-03-31 17:43\n"
 "Last-Translator: developers@frappe.io\n"
 "Language-Team: Persian\n"
 "MIME-Version: 1.0\n"
@@ -21604,11 +21604,11 @@ msgstr "کارهای زمان‌بندی شده را فقط در صورت علا
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.py:57
 msgid "Runtime in Minutes"
-msgstr "زمان اجرا به دقیقه"
+msgstr ""
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.py:57
 msgid "Runtime in Seconds"
-msgstr "زمان اجرا به ثانیه"
+msgstr ""
 
 #. Name of a DocType
 #. Label of a Link in the Integrations Workspace
@@ -24695,11 +24695,11 @@ msgstr "تغییر تم"
 
 #: frappe/templates/includes/navbar/navbar_login.html:17
 msgid "Switch To Desk"
-msgstr "سوئیچ به پیشخوان"
+msgstr "سوئیچ به میز"
 
 #: frappe/public/js/frappe/list/list_sidebar.js:296
 msgid "Switch to Frappe CRM for smarter sales"
-msgstr "برای فروش هوشمندتر به Frappe CRM بروید"
+msgstr ""
 
 #: frappe/public/js/frappe/ui/capture.js:273
 msgid "Switching Camera"
@@ -26374,7 +26374,7 @@ msgstr "بالا"
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.js:13
 msgid "Top 10"
-msgstr "10 برتر"
+msgstr ""
 
 #. Name of a DocType
 #: frappe/website/doctype/top_bar_item/top_bar_item.json
@@ -27930,7 +27930,7 @@ msgstr "تأیید کنید"
 
 #: frappe/public/js/frappe/ui/messages.js:353
 msgid "Verify Password"
-msgstr "تائید گذرواژه"
+msgstr "تائید رمز عبور"
 
 #: frappe/templates/includes/login/login.js:172
 msgid "Verifying..."
