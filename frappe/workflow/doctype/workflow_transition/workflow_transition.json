@@ -11,6 +11,7 @@
   "next_state",
   "allowed",
   "allow_self_approval",
+  "send_email_to_creator",
   "conditions",
   "condition",
   "column_break_7",
