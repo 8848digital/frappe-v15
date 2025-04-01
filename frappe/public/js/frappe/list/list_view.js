@@ -24,6 +24,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	constructor(opts) {
 		super(opts);
 		this.show();
+		const meta = frappe.get_meta(this.doctype);
+		this.is_large_table = meta?.is_large_table;
 		this.debounced_refresh = frappe.utils.debounce(
 			this.process_document_refreshes.bind(this),
 			2000
@@ -109,9 +111,29 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		if (this.view_name == "List") this.toggle_paging = true;
 
 		this.patch_refresh_and_load_lib();
-		return this.get_list_view_settings();
+		return this.get_list_view_settings().then(() => this.add_recent_filter_on_large_tables());
 	}
+	add_recent_filter_on_large_tables() {
+		if (!this.is_large_table || this.list_view_settings?.disable_automatic_recency_filters) {
+			return;
+		}
+		// Note: versions older than v16 should use "modified" here.
+		const recency_field = "modified";
 
+		if (this.filters.length) {
+			return;
+		}
+		this.filters.push([this.doctype, recency_field, "Timespan", "last 90 days"]);
+		frappe.show_alert(
+			{
+				message: __(
+					"Automatically applied a filter for recent data. You can disable this behavior from the list view settings."
+				),
+				indicator: "yellow",
+			},
+			3
+		);
+	}
 	on_sort_change(sort_by, sort_order) {
 		this.sort_by = sort_by;
 		this.sort_order = sort_order;
@@ -1723,7 +1745,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		items.push({
 			label: __("Toggle Sidebar", null, "Button in list view menu"),
 			action: () => this.toggle_side_bar(),
-			condition: () => !this.hide_sidebar,
+			condition: () => !this.page.disable_sidebar_toggle,
 			standard: true,
 			shortcut: "Ctrl+K",
 		});

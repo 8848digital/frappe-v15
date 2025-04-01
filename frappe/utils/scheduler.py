@@ -15,12 +15,12 @@ import time
 from typing import NoReturn
 
 from croniter import CroniterBadCronError
+from filelock import FileLock, Timeout
 
 # imports - module imports
 from filelock import FileLock, Timeout
 import frappe
-from frappe.translate import get_bench_path
-from frappe.utils import cint, get_datetime, get_sites, now_datetime
+from frappe.utils import cint, get_bench_path, get_datetime, get_sites, now_datetime
 from frappe.utils.background_jobs import set_niceness
 from frappe.utils.caching import redis_cache
 
@@ -47,6 +47,23 @@ def start_scheduler() -> NoReturn:
 		time.sleep(tick)
 		enqueue_events_for_all_sites()
 
+def _get_scheduler_lock_file() -> True:
+	return os.path.abspath(os.path.join(get_bench_path(), "config", "scheduler_process"))
+
+
+def is_schduler_process_running() -> bool:
+	"""Checks if any other process is holding the lock.
+
+	Note: FLOCK is held by process until it exits, this function just checks if process is
+	running or not. We can't determine if process is stuck somehwere.
+	"""
+	try:
+		lock = FileLock(_get_scheduler_lock_file())
+		lock.acquire(blocking=False)
+		lock.release()
+		return False
+	except Timeout:
+		return True
 
 def enqueue_events_for_all_sites() -> None:
 	"""Loop through sites and enqueue events that are not already queued"""
