@@ -1868,6 +1868,7 @@ def import_doc(path):
 
 
 def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
+	import copy
 	"""No_copy fields also get copied."""
 
 	def remove_no_copy_fields(d):
