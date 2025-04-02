@@ -1869,7 +1869,6 @@ def import_doc(path):
 
 def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
 	"""No_copy fields also get copied."""
-	import copy
 
 	def remove_no_copy_fields(d):
 		for df in d.meta.get("fields", {"no_copy": 1}):
