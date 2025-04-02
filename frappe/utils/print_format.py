@@ -4,7 +4,7 @@ import json
 import os
 import uuid
 from io import BytesIO
-
+from typing import Literal
 from pypdf import PdfWriter
 
 import frappe
@@ -235,7 +235,7 @@ def download_pdf(
 	no_letterhead=0,
 	language=None,
 	letterhead=None,
-	chrome_pdf_generator=None,
+	pdf_generator: Literal["wkhtmltopdf", "chrome"] | None = None,
 ):
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
@@ -250,7 +250,7 @@ def download_pdf(
 			as_pdf=True,
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
-			chrome_pdf_generator=chrome_pdf_generator,
+			pdf_generator=pdf_generator,
 		)
 		)
 
