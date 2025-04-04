@@ -1524,10 +1524,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				const docfield = frappe.query_report.get_filter(fieldname).df;
 				const value = applied_filters[fieldname];
 
-				if (frappe.utils.is_empty(value) || docfield.hidden_due_to_dependency) {
-					return null;
-				}
-
 				if (docfield.hidden_due_to_dependency) {
 					return null;
 				}
