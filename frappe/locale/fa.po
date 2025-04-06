@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: frappe\n"
 "Report-Msgid-Bugs-To: developers@frappe.io\n"
 "POT-Creation-Date: 2025-03-20 13:58+0000\n"
-"PO-Revision-Date: 2025-03-31 17:43\n"
+"PO-Revision-Date: 2025-04-06 14:09\n"
 "Last-Translator: developers@frappe.io\n"
 "Language-Team: Persian\n"
 "MIME-Version: 1.0\n"
@@ -8693,7 +8693,7 @@ msgstr "خروجی را فعال کنید"
 #. Label of a Check field in DocType 'System Settings'
 #: frappe/core/doctype/system_settings/system_settings.json
 msgid "Enable Password Policy"
-msgstr "فعال کردن سیاست گذرواژه"
+msgstr "سیاست گذرواژه را فعال کنید"
 
 #. Label of a Check field in DocType 'Role Permission for Page and Report'
 #: frappe/core/doctype/role_permission_for_page_and_report/role_permission_for_page_and_report.json
@@ -21604,11 +21604,11 @@ msgstr "کارهای زمان‌بندی شده را فقط در صورت علا
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.py:57
 msgid "Runtime in Minutes"
-msgstr ""
+msgstr "زمان اجرا به دقیقه"
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.py:57
 msgid "Runtime in Seconds"
-msgstr ""
+msgstr "زمان اجرا به ثانیه"
 
 #. Name of a DocType
 #. Label of a Link in the Integrations Workspace
@@ -24699,7 +24699,7 @@ msgstr "سوئیچ به میز"
 
 #: frappe/public/js/frappe/list/list_sidebar.js:296
 msgid "Switch to Frappe CRM for smarter sales"
-msgstr ""
+msgstr "برای فروش هوشمندتر به Frappe CRM بروید"
 
 #: frappe/public/js/frappe/ui/capture.js:273
 msgid "Switching Camera"
@@ -26374,7 +26374,7 @@ msgstr "بالا"
 
 #: frappe/core/report/prepared_report_analytics/prepared_report_analytics.js:13
 msgid "Top 10"
-msgstr ""
+msgstr "10 برتر"
 
 #. Name of a DocType
 #: frappe/website/doctype/top_bar_item/top_bar_item.json
@@ -27930,7 +27930,7 @@ msgstr "تأیید کنید"
 
 #: frappe/public/js/frappe/ui/messages.js:353
 msgid "Verify Password"
-msgstr "تائید رمز عبور"
+msgstr "تائید گذرواژه"
 
 #: frappe/templates/includes/login/login.js:172
 msgid "Verifying..."
