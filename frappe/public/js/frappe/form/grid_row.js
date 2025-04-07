@@ -8,12 +8,11 @@ export default class GridRow {
 		this.set_docfields();
 		this.columns = {};
 		this.columns_list = [];
-		this.dependent_fields = {
+		this.depandant_fields = {
 			mandatory: [],
 			read_only: [],
 		};
-		this.row_check_html = '<input type="checkbox" class="grid-row-check" tabIndex="-1">';
-		this.default_rows_threshold_for_grid_search = 20;
+		this.row_check_html = '<input type="checkbox" class="grid-row-check">';
 		this.make();
 	}
 	make() {
@@ -770,7 +769,7 @@ export default class GridRow {
 			this.evaluate_depends_on_value(df.mandatory_depends_on)
 		) {
 			df.reqd = 1;
-			this.dependent_fields["mandatory"].push(df);
+			this.depandant_fields["mandatory"].push(df);
 		}
 
 		if (
@@ -779,16 +778,16 @@ export default class GridRow {
 			this.evaluate_depends_on_value(df.read_only_depends_on)
 		) {
 			df.read_only = 1;
-			this.dependent_fields["read_only"].push(df);
+			this.depandant_fields["read_only"].push(df);
 		}
 	}
 
-	refresh_dependency() {
-		this.dependent_fields["read_only"].forEach((df) => {
+	refresh_depedency() {
+		this.depandant_fields["read_only"].forEach((df) => {
 			df.read_only = 0;
 			this.set_dependant_property(df);
 		});
-		this.dependent_fields["mandatory"].forEach((df) => {
+		this.depandant_fields["mandatory"].forEach((df) => {
 			df.reqd = 0;
 			this.set_dependant_property(df);
 		});
@@ -1182,7 +1181,7 @@ export default class GridRow {
 		// df.onchange is common for all rows in grid
 		let field_on_change_function = df.onchange;
 		field.df.change = (e) => {
-			this.refresh_dependency();
+			this.refresh_depedency();
 			// trigger onchange with current grid row field as "this"
 			field_on_change_function && field_on_change_function.apply(field, [e]);
 			me.refresh_field(field.df.fieldname);
