@@ -6,7 +6,10 @@ pull_request_labels:
   - translation
   - skip-release-notes
 pull_request_reviewers:
-  - barredterra # change to your GitHub username if you copied this file
+  - aasif-patel
+  - tinadn
+  - Satya8848 
+  - aashishvashisht06
 commit_message: "fix: %language% translations"
 append_commit_message: false
 languages_mapping:
