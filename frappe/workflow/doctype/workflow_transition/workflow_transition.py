@@ -23,5 +23,6 @@ class WorkflowTransition(Document):
 		parentfield: DF.Data
 		parenttype: DF.Data
 		state: DF.Link
+		send_email_to_creator: DF.Check
 	# end: auto-generated types
 	pass
