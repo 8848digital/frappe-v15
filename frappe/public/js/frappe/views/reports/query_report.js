@@ -1264,6 +1264,10 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	prepare_columns(columns) {
+		let is_query_generated_report =
+			this.report_doc.query &&
+			this.report_doc.query != undefined &&
+			this.report_doc.query != "";
 		return columns.map((column) => {
 			column = frappe.report_utils.prepare_field_from_column(column);
 
@@ -1312,7 +1316,8 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				id: column.fieldname,
 				// The column label should have already been translated in the
 				// backend. Translating it again would cause unexpected behaviour.
-				name: column.label,
+				// Translating based on condition: when a report is generated through a query, the label is not translated.
+				name: is_query_generated_report ? __(column.label) : column.label,
 				width: parseInt(column.width) || null,
 				editable: column.editable ?? false,
 				compareValue: compareFn,
@@ -1518,10 +1523,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			.map((fieldname) => {
 				const docfield = frappe.query_report.get_filter(fieldname).df;
 				const value = applied_filters[fieldname];
-
-				if (frappe.utils.is_empty(value) || docfield.hidden_due_to_dependency) {
-					return null;
-				}
 
 				if (docfield.hidden_due_to_dependency) {
 					return null;

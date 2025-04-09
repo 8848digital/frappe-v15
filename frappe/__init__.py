@@ -10,7 +10,6 @@ be used to build database driven apps.
 
 Read the documentation: https://frappeframework.com/docs
 """
-import copy
 import faulthandler
 import functools
 import gc
@@ -61,7 +60,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.58.0"
+__version__ = "15.62.0"
 __title__ = "Frappe Framework"
 
 
@@ -1725,14 +1724,22 @@ def get_file_json(path):
 		return json.load(f)
 
 
-def read_file(path, raise_not_found=False):
-	"""Open a file and return its content as Unicode."""
+def read_file(path, raise_not_found=False, as_base64=False):
+	"""Open a file and return its content as Unicode or Base64 string."""
 	if isinstance(path, str):
 		path = path.encode("utf-8")
 
 	if os.path.exists(path):
-		with open(path) as f:
-			return as_unicode(f.read())
+		if as_base64:
+			import base64
+
+			with open(path, "rb") as f:
+				content = f.read()
+				return base64.b64encode(content).decode("utf-8")
+		else:
+			with open(path) as f:
+				content = f.read()
+				return as_unicode(content)
 	elif raise_not_found:
 		raise OSError(f"{path} Not Found")
 	else:
@@ -1861,8 +1868,8 @@ def import_doc(path):
 
 
 def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
-	"""No_copy fields also get copied."""
 	import copy
+	"""No_copy fields also get copied."""
 
 	def remove_no_copy_fields(d):
 		for df in d.meta.get("fields", {"no_copy": 1}):
@@ -2130,53 +2137,6 @@ def format(*args, **kwargs):
 	import frappe.utils.formatters
 
 	return frappe.utils.formatters.format_value(*args, **kwargs)
-
-
-def get_print(
-	doctype=None,
-	name=None,
-	print_format=None,
-	style=None,
-	as_pdf=False,
-	doc=None,
-	output=None,
-	no_letterhead=0,
-	password=None,
-	pdf_options=None,
-	letterhead=None,
-):
-	"""Get Print Format for given document.
-
-	:param doctype: DocType of document.
-	:param name: Name of document.
-	:param print_format: Print Format name. Default 'Standard',
-	:param style: Print Format style.
-	:param as_pdf: Return as PDF. Default False.
-	:param password: Password to encrypt the pdf with. Default None"""
-	from frappe.utils.pdf import get_pdf
-	from frappe.website.serve import get_response_without_exception_handling
-
-	original_form_dict = copy.deepcopy(local.form_dict)
-	try:
-		local.form_dict.doctype = doctype
-		local.form_dict.name = name
-		local.form_dict.format = print_format
-		local.form_dict.style = style
-		local.form_dict.doc = doc
-		local.form_dict.no_letterhead = no_letterhead
-		local.form_dict.letterhead = letterhead
-
-		pdf_options = pdf_options or {}
-		if password:
-			pdf_options["password"] = password
-
-		response = get_response_without_exception_handling("printview", 200)
-		html = str(response.data, "utf-8")
-	finally:
-		local.form_dict = original_form_dict
-
-	return get_pdf(html, options=pdf_options, output=output) if as_pdf else html
-
 
 def attach_print(
 	doctype,
@@ -2532,6 +2492,7 @@ def _register_fault_handler():
 
 
 from frappe.utils.error import log_error
+from frappe.utils.print_utils import get_print
 
 if _tune_gc:
 	# generational GC gets triggered after certain allocs (g0) which is 700 by default.
