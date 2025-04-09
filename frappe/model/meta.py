@@ -23,6 +23,7 @@ import click
 import frappe
 from frappe import _, _lt
 from frappe.model import (
+	NO_VALUE_FIELDS,
 	child_table_fields,
 	data_fieldtypes,
 	default_fields,
@@ -284,7 +285,7 @@ class Meta(Document):
 			link_fields = [df.fieldname for df in self.get_link_fields()]
 
 		for df in self.fields:
-			if df.fieldtype not in no_value_fields and getattr(df, "fetch_from", None):
+			if df.fieldtype not in NO_VALUE_FIELDS and getattr(df, "fetch_from", None):
 				if link_fieldname:
 					if df.fetch_from.startswith(link_fieldname + "."):
 						out.append(df)
@@ -611,7 +612,7 @@ class Meta(Document):
 
 	def get_permlevel_access(self, permission_type="read", parenttype=None, *, user=None):
 		has_access_to = []
-		roles = frappe.get_roles(user)
+		roles = set(frappe.get_roles(user))
 		for perm in self.get_permissions(parenttype):
 			if perm.role in roles and perm.get(permission_type):
 				if perm.permlevel not in has_access_to:
