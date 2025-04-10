@@ -2,6 +2,7 @@
 # License: MIT. See LICENSE
 
 
+from datetime import date, datetime
 import json
 from datetime import date, datetime
 
@@ -17,7 +18,7 @@ from frappe.model.document import Document
 from frappe.utils import (
 	add_days,
 	add_months,
-	add_years,
+	date_diff,
 	format_datetime,
 	get_fullname,
 	getdate,
@@ -37,7 +38,7 @@ communication_mapping = {
 	"Other": "Other",
 }
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Optional, TypeAlias
 
 if TYPE_CHECKING:
 	from frappe.core.doctype.communication.communication import Communication
@@ -279,11 +280,10 @@ def send_event_digest():
 
 @frappe.whitelist()
 def get_events(
-	start: date, end: date, user: str | None = None, for_reminder: bool = False, filters=None
+	start: date, end: date, user: Optional[str] = None, for_reminder: bool = False, filters=None
 ) -> list[frappe._dict]:
 	user = user or frappe.session.user
 	EventLikeDict: TypeAlias = Event | frappe._dict
-	resolved_events: list[EventLikeDict] = []
 
 	if isinstance(filters, str):
 		filters = json.loads(filters)
@@ -358,80 +358,64 @@ def get_events(
 		as_dict=True,
 	)
 
-	def resolve_event(e: EventLikeDict, target_date: "date", repeat_till: "date"):
-		"""Record the event if it falls within the date range and is not excluded by the weekday."""
-		if e.repeat_on == "Weekly" and not e[weekdays[target_date.weekday()]]:
-			return
+	add_events = []
+	remove_events = []
 
-		if not (
-			e.starts_on.date() <= target_date
-			and target_date >= start
-			and target_date <= end
-			and target_date <= repeat_till
-		):
-			return
-
-		ends_on_date = add_days(target_date, (e.ends_on - e.starts_on).days) if e.ends_on else None
-
-		if ends_on_date and e.repeat_till and ((ends_on_date > e.repeat_till) or (ends_on_date < start)):
-			return
-
+	def add_event(e: EventLikeDict, d: "date"):
 		new_event = e.copy()
+		new_event.starts_on = datetime.combine(d, e.starts_on.time())
 
-		new_event.original_starts_on = new_event.starts_on
-		new_event.original_ends_on = new_event.ends_on
+		if e.ends_on:
+			end_date = add_days(d, date_diff(e.ends_on, e.starts_on)) if (e.starts_on and e.ends_on) else d
+			new_event.ends_on = datetime.combine(end_date, e.ends_on.time())
 
-		new_event.starts_on = datetime.combine(target_date, e.starts_on.time())
-		new_event.ends_on = datetime.combine(ends_on_date, e.ends_on.time()) if ends_on_date else None
-
-		resolved_events.append(new_event)
+		add_events.append(new_event)
 
 	for e in event_candidates:
 		if not e.repeat_this_event:
-			resolved_events.append(e)
 			continue
 
-		if e.repeat_till and e.repeat_till < start:
-			continue
-
+		event_start = e.starts_on.date()
 		repeat_till = getdate(e.repeat_till or "3000-01-01")
 
-		if e.repeat_on == "Daily":
-			target_date = start
-			while target_date <= end:
-				resolve_event(e, target_date=target_date, repeat_till=repeat_till)
-				target_date = add_days(target_date, 1)
+		def within_range(d):
+			return d >= getdate(start) and d <= getdate(end) and d <= repeat_till
 
-		elif e.repeat_on == "Weekly":
-			target_date = start
-			while target_date <= end:
-				resolve_event(e, target_date=target_date, repeat_till=repeat_till)
-				target_date = add_days(target_date, 1)  # Increment by 1 to capture multiple days in the week
+		if e.repeat_on == "Yearly":
+			for year in range(start.year, end.year + 1):
+				d = date(year, event_start.month, event_start.day)
+				if within_range(d):
+					add_event(e, d)
+			remove_events.append(e)
 
 		elif e.repeat_on == "Monthly":
-			first_occurence_in_range = e.starts_on.date()
-			jump_ahead = month_diff(start, first_occurence_in_range) - 1
-			target_date = add_months(first_occurence_in_range, jump_ahead)
+			start_date = date(start.year, start.month, event_start.day)
+			for i in range((date_diff(end, start) // 30) + 3):
+				d = add_months(start_date, i)
+				if within_range(d):
+					add_event(e, d)
+			remove_events.append(e)
 
-			while target_date <= end:
-				resolve_event(e, target_date=target_date, repeat_till=repeat_till)
-				target_date = add_months(target_date, 1)
+		elif e.repeat_on == "Weekly":
+			for cnt in range(date_diff(end, start) + 1):
+				d = add_days(start, cnt)
+				if e[weekdays[d.weekday()]] and within_range(d):
+					add_event(e, d)
+			remove_events.append(e)
 
-		elif e.repeat_on == "Yearly":
-			first_occurence_in_range = e.starts_on.date()
-			jump_ahead = month_diff(start, first_occurence_in_range) // 12
-			target_date = add_years(first_occurence_in_range, jump_ahead)
-
-			while target_date <= end:
-				resolve_event(e, target_date=target_date, repeat_till=repeat_till)
-				target_date = add_years(target_date, 1)
+		elif e.repeat_on == "Daily":
+			for cnt in range(date_diff(end, start) + 1):
+				d = add_days(start, cnt)
+				if within_range(d):
+					add_event(e, d)
+			remove_events.append(e)
 
 	# Remove events that are not in the range and boolean weekdays fields
-	for event in resolved_events:
-		for fieldname in weekdays:
-			event.pop(fieldname, None)
-
-	return resolved_events
+	return [
+		{fieldname: fieldvalue for fieldname, fieldvalue in event.items() if fieldname not in weekdays}
+		for event in event_candidates + add_events
+		if event not in remove_events
+	]
 
 
 def delete_events(ref_type, ref_name, delete_event=False):
