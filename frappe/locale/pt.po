@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: frappe\n"
 "Report-Msgid-Bugs-To: developers@frappe.io\n"
 "POT-Creation-Date: 2025-03-20 13:58+0000\n"
-"PO-Revision-Date: 2025-05-01 20:33\n"
+"PO-Revision-Date: 2025-04-14 16:58\n"
 "Last-Translator: developers@frappe.io\n"
 "Language-Team: Portuguese\n"
 "MIME-Version: 1.0\n"
@@ -833,7 +833,11 @@ msgstr ""
 #: frappe/contacts/doctype/contact/contact.json
 #: frappe/geo/doctype/currency/currency.json
 msgid "Accounts Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor de Contas"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/automation/doctype/auto_repeat/auto_repeat.json
@@ -841,7 +845,11 @@ msgstr ""
 #: frappe/contacts/doctype/contact/contact.json
 #: frappe/geo/doctype/currency/currency.json
 msgid "Accounts User"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Utilizador de Contas"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Select field in DocType 'Amended Document Naming Settings'
 #. Option for the 'Item Type' (Select) field in DocType 'Navbar Item'
@@ -1046,7 +1054,11 @@ msgstr ""
 
 #: frappe/public/js/frappe/views/treeview.js:267
 msgid "Add Child"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Adicionar Subgrupo"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/views/kanban/kanban_board.html:4
 #: frappe/public/js/frappe/views/reports/query_report.js:1699
@@ -1104,7 +1116,11 @@ msgstr ""
 
 #: frappe/desk/doctype/event/event.js:35 frappe/desk/doctype/event/event.js:42
 msgid "Add Participants"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Adicione participantes"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Check field in DocType 'Email Group'
 #: frappe/email/doctype/email_group/email_group.json
@@ -1324,7 +1340,7 @@ msgstr ""
 #: frappe/contacts/doctype/address/address.json
 #: frappe/website/doctype/contact_us_settings/contact_us_settings.json
 msgid "Address Line 1"
-msgstr ""
+msgstr "Endereço Linha 1"
 
 #. Label of a Data field in DocType 'Address'
 #. Label of a Data field in DocType 'Contact Us Settings'
@@ -4762,7 +4778,11 @@ msgstr ""
 #: frappe/public/js/frappe/views/reports/query_report.js:1980
 #: frappe/public/js/frappe/views/treeview.js:110
 msgid "Collapse All"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Recolher todos"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Check field in DocType 'DocField'
 #. Label of a Check field in DocType 'Custom Field'
@@ -6745,12 +6765,20 @@ msgstr ""
 #: frappe/templates/discussions/reply_card.html:35
 #: frappe/templates/discussions/reply_section.html:29
 msgid "Delete"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Eliminar"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/list/list_view.js:1957
 msgctxt "Button in list view actions menu"
 msgid "Delete"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Eliminar"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/www/me.html:75
 msgid "Delete Account"
@@ -7955,7 +7983,11 @@ msgstr ""
 #: frappe/public/js/frappe/model/indicator.js:73
 #: frappe/public/js/frappe/ui/filters/filter.js:535
 msgid "Draft"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Esboço, projeto"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/views/workspace/blocks/header.js:46
 #: frappe/public/js/frappe/views/workspace/blocks/paragraph.js:136
@@ -8886,7 +8918,11 @@ msgstr ""
 #: frappe/public/js/frappe/utils/common.js:416
 #: frappe/website/doctype/web_page/web_page.json
 msgid "End Date"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Data de Término"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Select field in DocType 'Calendar View'
 #: frappe/desk/doctype/calendar_view/calendar_view.json
@@ -8990,7 +9026,11 @@ msgstr ""
 #: frappe/public/js/frappe/ui/messages.js:94
 msgctxt "Title of prompt dialog"
 msgid "Enter Value"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Insira o Valor"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/form/form_tour.js:60
 msgid "Enter a name for this {0}"
@@ -9305,7 +9345,11 @@ msgstr ""
 #: frappe/public/js/frappe/views/reports/query_report.js:1980
 #: frappe/public/js/frappe/views/treeview.js:114
 msgid "Expand All"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Expandir todos"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/form/templates/form_sidebar.html:23
 msgid "Experimental"
@@ -10770,7 +10814,7 @@ msgstr ""
 
 #: frappe/public/js/frappe/views/treeview.js:385
 msgid "Further nodes can be only created under 'Group' type nodes"
-msgstr ""
+msgstr "Só podem ser criados subgrupos em subgrupos do tipo 'Grupo'"
 
 #: frappe/core/doctype/communication/communication.js:291
 msgid "Fw: {0}"
@@ -11248,7 +11292,11 @@ msgstr ""
 #: frappe/desk/doctype/dashboard_chart/dashboard_chart.json
 #: frappe/website/report/website_analytics/website_analytics.js:32
 msgid "Group By"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Agrupar por"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Select field in DocType 'Dashboard Chart'
 #: frappe/desk/doctype/dashboard_chart/dashboard_chart.json
@@ -11266,7 +11314,11 @@ msgstr ""
 
 #: frappe/public/js/frappe/views/treeview.js:384
 msgid "Group Node"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Subgrupo"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Data field in DocType 'LDAP Settings'
 #: frappe/integrations/doctype/ldap_settings/ldap_settings.json
@@ -12414,7 +12466,11 @@ msgstr ""
 
 #: frappe/core/doctype/data_import/data_import.js:42
 msgid "In Progress"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Em progresso"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/database/database.py:246
 msgid "In Read Only Mode"
@@ -12861,7 +12917,11 @@ msgstr ""
 
 #: frappe/email/smtp.py:135
 msgid "Invalid Credentials"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Credenciais inválidas"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/utils/data.py:105 frappe/utils/data.py:257
 msgid "Invalid Date"
@@ -14770,13 +14830,21 @@ msgstr ""
 #. Name of a role
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Maintenance Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor de Manutenção"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/contacts/doctype/address/address.json
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Maintenance User"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Utilizador da Manutenção"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Int field in DocType 'Package Release'
 #: frappe/core/doctype/package_release/package_release.json
@@ -15135,7 +15203,11 @@ msgstr ""
 #: frappe/public/js/frappe/form/toolbar.js:241
 #: frappe/public/js/frappe/model/model.js:734
 msgid "Merge with existing"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Unir com existente"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/utils/nestedset.py:311
 msgid "Merging is only possible between Group-to-Group or Leaf Node-to-Leaf Node"
@@ -15396,7 +15468,11 @@ msgstr ""
 #: frappe/public/js/workflow_builder/store.js:97
 #: frappe/workflow/doctype/workflow/workflow.js:71
 msgid "Missing Values Required"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "São Necessários os Valores em Falta"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/www/login.py:105
 msgid "Mobile"
@@ -16782,7 +16858,11 @@ msgstr ""
 
 #: frappe/workflow/doctype/workflow/workflow_list.js:7
 msgid "Not active"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Não está ativo"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/permissions.py:355
 msgid "Not allowed for {0}: {1}"
@@ -16829,7 +16909,11 @@ msgstr ""
 #: frappe/website/doctype/web_form/web_form.py:683
 #: frappe/website/js/website.js:97
 msgid "Not permitted"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Não é permitido"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/list/list_view.js:50
 msgid "Not permitted to view {0}"
@@ -17451,12 +17535,20 @@ msgstr ""
 #: frappe/desk/doctype/event/event.json frappe/desk/doctype/todo/todo.json
 #: frappe/workflow/doctype/workflow_action/workflow_action.json
 msgid "Open"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Abrir"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/desk/doctype/todo/todo_list.js:14
 msgctxt "Access"
 msgid "Open"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Abrir"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/ui/keyboard.js:205
 msgid "Open Awesomebar"
@@ -17731,7 +17823,11 @@ msgstr ""
 #: frappe/core/report/transaction_log_report/transaction_log_report.py:100
 #: frappe/social/doctype/energy_point_rule/energy_point_rule.js:42
 msgid "Owner"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Dono"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Option for the 'Method' (Select) field in DocType 'Recorder'
 #: frappe/core/doctype/recorder/recorder.json
@@ -18735,7 +18831,7 @@ msgstr ""
 
 #: frappe/desk/page/leaderboard/leaderboard.js:244
 msgid "Please select Company"
-msgstr ""
+msgstr "Por favor, selecione a Empresa"
 
 #: frappe/printing/doctype/print_format/print_format.js:30
 msgid "Please select DocType first"
@@ -18797,7 +18893,7 @@ msgstr ""
 
 #: frappe/website/doctype/website_settings/website_settings.js:100
 msgid "Please select {0}"
-msgstr ""
+msgstr "Por favor, selecione {0}"
 
 #: frappe/integrations/doctype/dropbox_settings/dropbox_settings.py:305
 msgid "Please set Dropbox access keys in site config or doctype"
@@ -18849,7 +18945,7 @@ msgstr ""
 
 #: frappe/public/js/frappe/model/model.js:803
 msgid "Please specify"
-msgstr ""
+msgstr "Por favor, especifique"
 
 #: frappe/permissions.py:774
 msgid "Please specify a valid parent DocType for {0}"
@@ -19620,19 +19716,31 @@ msgstr ""
 #. Name of a role
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Purchase Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor de Compras"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Purchase Master Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor Definidor de Compra"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/contacts/doctype/address/address.json
 #: frappe/contacts/doctype/contact/contact.json
 #: frappe/geo/doctype/currency/currency.json
 msgid "Purchase User"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Utilizador de Compra"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Option for the 'Color' (Select) field in DocType 'DocType State'
 #. Option for the 'Indicator' (Select) field in DocType 'Kanban Board Column'
@@ -19692,7 +19800,11 @@ msgstr ""
 #: frappe/email/doctype/auto_email_report/auto_email_report.json
 #: frappe/public/js/frappe/utils/common.js:401
 msgid "Quarterly"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Trimestral"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Data field in DocType 'Recorder Query'
 #. Label of a Code field in DocType 'Report'
@@ -19866,7 +19978,11 @@ msgstr ""
 
 #: frappe/website/report/website_analytics/website_analytics.js:20
 msgid "Range"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Faixa"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/desk/page/user_profile/user_profile_controller.js:402
 msgid "Rank"
@@ -20395,7 +20511,11 @@ msgstr ""
 #: frappe/public/js/frappe/widgets/number_card_widget.js:328
 #: frappe/public/js/print_format_builder/Preview.vue:24
 msgid "Refresh"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Recarregar"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/core/page/dashboard_view/dashboard_view.js:177
 msgid "Refresh All"
@@ -20593,7 +20713,11 @@ msgstr ""
 #: frappe/public/js/frappe/model/model.js:752
 #: frappe/public/js/frappe/views/treeview.js:277
 msgid "Rename"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Alterar Nome"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/custom/doctype/custom_field/custom_field.js:116
 #: frappe/custom/doctype/custom_field/custom_field.js:136
@@ -21706,19 +21830,31 @@ msgstr ""
 #. Name of a role
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Sales Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor De Vendas"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/contacts/doctype/contact/contact.json
 msgid "Sales Master Manager"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Gestor de Vendas Master"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Name of a role
 #: frappe/contacts/doctype/address/address.json
 #: frappe/contacts/doctype/contact/contact.json
 #: frappe/geo/doctype/currency/currency.json
 msgid "Sales User"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Utilizador de Vendas"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Option for the 'Social Login Provider' (Select) field in DocType 'Social
 #. Login Key'
@@ -22255,7 +22391,11 @@ msgstr ""
 #: frappe/website/doctype/web_form_field/web_form_field.json
 #: frappe/website/doctype/web_template_field/web_template_field.json
 msgid "Select"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Seleção"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/data_import/data_exporter.js:149
 #: frappe/public/js/frappe/form/controls/multicheck.js:166
@@ -22624,7 +22764,11 @@ msgstr ""
 
 #: frappe/email/doctype/auto_email_report/auto_email_report.js:21
 msgid "Send Now"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Enviar agora"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Check field in DocType 'Print Settings'
 #: frappe/printing/doctype/print_settings/print_settings.json
@@ -22780,7 +22924,11 @@ msgstr ""
 #: frappe/email/doctype/email_queue/email_queue.json
 #: frappe/email/doctype/newsletter/newsletter.js:201
 msgid "Sending"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Transmissão"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/email/doctype/newsletter/newsletter.js:203
 msgid "Sending emails"
@@ -23914,7 +24062,11 @@ msgstr ""
 #: frappe/website/doctype/website_route_redirect/website_route_redirect.json
 #: frappe/website/report/website_analytics/website_analytics.js:38
 msgid "Source"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Fonte"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Data field in DocType 'Dashboard Chart Source'
 #: frappe/desk/doctype/dashboard_chart_source/dashboard_chart_source.json
@@ -26147,7 +26299,11 @@ msgstr ""
 #: frappe/desk/doctype/dashboard_chart/dashboard_chart.json
 #: frappe/website/report/website_analytics/website_analytics.js:14
 msgid "To Date"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Até à Data"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Select field in DocType 'Auto Email Report'
 #: frappe/email/doctype/auto_email_report/auto_email_report.json
@@ -27390,7 +27546,11 @@ msgstr ""
 #: frappe/website/doctype/personal_data_download_request/personal_data_download_request.json
 #: frappe/workflow/doctype/workflow_action/workflow_action.json
 msgid "User"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Do utilizador"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Label of a Link field in DocType 'Access Log'
 #: frappe/core/doctype/access_log/access_log.json
@@ -27680,7 +27840,11 @@ msgstr ""
 
 #: frappe/utils/oauth.py:270
 msgid "User {0} is disabled"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Utilizador {0} está desativado"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/sessions.py:240
 msgid "User {0} is disabled. Please contact your System Manager."
@@ -28479,7 +28643,11 @@ msgstr ""
 #: frappe/social/doctype/energy_point_settings/energy_point_settings.json
 #: frappe/website/report/website_analytics/website_analytics.js:24
 msgid "Weekly"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Semanal"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Option for the 'Frequency' (Select) field in DocType 'Scheduled Job Type'
 #. Option for the 'Event Frequency' (Select) field in DocType 'Server Script'
@@ -28516,7 +28684,11 @@ msgstr ""
 
 #: frappe/core/doctype/user/user.py:418
 msgid "Welcome to {0}"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Bem-vindo ao {0}"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #: frappe/public/js/frappe/ui/notifications/notifications.js:62
 msgid "What's New"
@@ -28876,7 +29048,7 @@ msgstr ""
 #: frappe/desk/doctype/dashboard_chart/dashboard_chart.json
 #: frappe/website/doctype/company_history/company_history.json
 msgid "Year"
-msgstr "Ano"
+msgstr ""
 
 #. Option for the 'Frequency' (Select) field in DocType 'Auto Repeat'
 #. Option for the 'Frequency' (Select) field in DocType 'Scheduled Job Type'
@@ -28894,7 +29066,11 @@ msgstr "Ano"
 #: frappe/email/doctype/auto_email_report/auto_email_report.json
 #: frappe/public/js/frappe/utils/common.js:403
 msgid "Yearly"
+<<<<<<< HEAD
 msgstr ""
+=======
+msgstr "Anual"
+>>>>>>> 257a8649e0 (fix: sync translations from crowdin (#32012))
 
 #. Option for the 'Color' (Select) field in DocType 'DocType State'
 #. Option for the 'Indicator' (Select) field in DocType 'Kanban Board Column'
