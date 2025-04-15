@@ -229,6 +229,11 @@ class DatabaseQuery:
 				r"coalesce(\1, 0)",
 				args.conditions
 			)
+			args.conditions = re.sub(
+				r'`([^`]+)`\.`([^`]+)`\s+ilike\s+\'(.*?)\'',
+				r"""  "\1"."\2"::TEXT ILIKE '\3' """,
+				args.conditions
+			)
 
 		if args.conditions:
 			args.conditions = "where " + args.conditions
