@@ -231,7 +231,7 @@ class DatabaseQuery:
 			)
 			args.conditions = re.sub(
 				r'`([^`]+)`\.`([^`]+)`\s+ilike\s+\'(.*?)\'',
-				r"\2::TEXT ILIKE '\3'",
+				r"""  "\1"."\2"::TEXT ILIKE '\3' """,
 				args.conditions
 			)
 
