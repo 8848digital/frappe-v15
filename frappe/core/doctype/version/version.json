@@ -72,6 +72,7 @@
    "role": "Administrator"
   }
  ],
+ "row_format": "Compressed",
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
