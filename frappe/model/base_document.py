@@ -390,8 +390,7 @@ class BaseDocument:
 							eval_globals=get_safe_globals(),
 							eval_locals={"doc": self},
 						)
-
-				if isinstance(value, list) and df.fieldtype not in table_fields:
+				if isinstance(str(value), list) and df.fieldtype not in table_fields:
 					frappe.throw(_("Value for {0} cannot be a list").format(_(df.label, context=df.parent)))
 
 				if df.fieldtype == "Check":
