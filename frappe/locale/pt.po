@@ -31817,3 +31817,4 @@ msgstr ""
 #: frappe/public/js/frappe/file_uploader/WebLink.vue:4
 msgid "← Back to upload files"
 msgstr ""
+

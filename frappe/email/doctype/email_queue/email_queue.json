@@ -170,6 +170,7 @@
    "role": "System Manager"
   }
  ],
+ "row_format": "Compressed",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

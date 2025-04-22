@@ -881,25 +881,20 @@ export default class Grid {
 	}
 
 	duplicate_row(d, copy_doc) {
-		const noCopyFields = new Set([
-			"creation",
-			"modified",
-			"modified_by",
-			"idx",
-			"owner",
-			"parent",
-			"doctype",
-			"name",
-			"parentfield",
-		]);
-
-		const docfields = frappe.get_meta(this.doctype).fields || [];
-		$.each(docfields, function (_index, df) {
-			if (cint(df.no_copy)) noCopyFields.add(df.fieldname);
-		});
-
 		$.each(copy_doc, function (key, value) {
-			if (!noCopyFields.has(key)) {
+			if (
+				![
+					"creation",
+					"modified",
+					"modified_by",
+					"idx",
+					"owner",
+					"parent",
+					"doctype",
+					"name",
+					"parentfield",
+				].includes(key)
+			) {
 				d[key] = value;
 			}
 		});
@@ -919,6 +914,7 @@ export default class Grid {
 				.focus();
 		}, 100);
 	}
+
 
 	setup_visible_columns() {
 		if (this.visible_columns && this.visible_columns.length > 0) return;
