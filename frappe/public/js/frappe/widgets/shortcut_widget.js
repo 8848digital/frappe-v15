@@ -22,6 +22,7 @@ export default class ShortcutWidget extends Widget {
 			type: this.type,
 			url: this.url,
 			kanban_board: this.kanban_board,
+			report_ref_doctype: this.report_ref_doctype,
 		};
 	}
 

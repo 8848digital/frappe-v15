@@ -427,6 +427,7 @@
    "role": "All"
   }
  ],
+ "row_format": "Compressed",
  "search_fields": "subject",
  "sender_field": "sender",
  "sort_field": "modified",
