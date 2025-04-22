@@ -229,9 +229,14 @@ class DatabaseQuery:
 				r"coalesce(\1, 0)",
 				args.conditions
 			)
+			# args.conditions = re.sub(
+			# 	r'`([^`]+)`\.`([^`]+)`\s+ilike\s+\'(.*?)\'',
+			# 	r"\2::TEXT ILIKE '\3'",
+			# 	args.conditions
+			# )
 			args.conditions = re.sub(
-				r'`([^`]+)`\.`([^`]+)`\s+ilike\s+\'(.*?)\'',
-				r"\2::TEXT ILIKE '\3'",
+				r'`([^`]+)`\.`([^`]+)`\s+(ilike|like)\s+\'(.*?)\'',
+				r"`\1`.\2::TEXT \3 '\4'",
 				args.conditions
 			)
 
