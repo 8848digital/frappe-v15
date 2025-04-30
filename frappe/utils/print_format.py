@@ -242,7 +242,6 @@ def download_pdf(
 
 	with print_language(language):
 		pdf_file = frappe.get_print(
-			pdf_file = frappe.get_print(
 			doctype,
 			name,
 			format,
@@ -251,7 +250,6 @@ def download_pdf(
 			letterhead=letterhead,
 			no_letterhead=no_letterhead,
 			pdf_generator=pdf_generator,
-		)
 		)
 
 	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
