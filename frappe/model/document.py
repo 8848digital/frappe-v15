@@ -400,7 +400,7 @@ class Document(BaseDocument):
 		self.flags.ignore_version = frappe.flags.in_test if ignore_version is None else ignore_version
 
 		if self.get("__islocal") or not self.get("name"):
-			return self.insert(ignore_permissions=True)
+			return self.insert()
 
 		self.check_if_locked()
 		self._set_defaults()
