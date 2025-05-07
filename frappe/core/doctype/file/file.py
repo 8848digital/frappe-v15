@@ -153,7 +153,7 @@ class File(Document):
 		self.validate_protected_file()
 		self._delete_file_on_disk()
 		if not self.is_folder:
-			self.add_comment_in_reference_doc("Attachment Removed", _("Removed {0}").format(self.file_name))
+			self.add_comment_in_reference_doc("Attachment Removed", self.file_name)
 
 	def on_rollback(self):
 		rollback_flags = ("new_file", "original_content", "original_path")
@@ -498,7 +498,7 @@ class File(Document):
 			msg=_("This file is attached to a protected document and cannot be deleted."),
 			title=_("Protected File"),
 		)
-		
+
 	def _delete_file_on_disk(self):
 		"""If file not attached to any other record, delete it"""
 		on_disk_file_not_shared = self.content_hash and not frappe.get_all(
@@ -716,7 +716,6 @@ class File(Document):
 
 		return {"file_name": os.path.basename(fpath), "file_url": self.file_url}
 
-
 	def check_max_file_size(self):
 		from frappe.core.api.file import get_max_file_size
 
@@ -760,7 +759,7 @@ class File(Document):
 
 		self.add_comment_in_reference_doc(
 			"Attachment",
-			_("Added {0}").format(f"<a href='{file_url}' target='_blank'>{file_name}</a>{icon}"),
+			f"<a href='{file_url}' target='_blank'>{file_name}</a>{icon}",
 		)
 
 	def add_comment_in_reference_doc(self, comment_type, text):
@@ -853,6 +852,8 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 
 		try:
 			ref_doc = frappe.get_doc(attached_to_doctype, attached_to_name)
+		except ModuleNotFoundError:
+			return False
 		except frappe.DoesNotExistError:
 			frappe.clear_last_message()
 			return False
