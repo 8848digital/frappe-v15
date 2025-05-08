@@ -1211,7 +1211,10 @@ class DatabaseQuery:
 
 			r._comment_count = 0
 			if "_comments" in r:
-				r._comment_count = len(json.loads(r._comments or "[]"))
+				if isinstance(r._comments, str):
+					r._comment_count = len(json.loads(r._comments or "[]"))
+				else:
+					r._comment_count = 0
 
 	def update_user_settings(self):
 		# update user settings if new search
