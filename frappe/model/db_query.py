@@ -221,6 +221,8 @@ class DatabaseQuery:
 					before_as, after_as = part.split(" as '", 1)
 					alias = after_as.rstrip("'").strip()
 					modified_fields.append(f'{before_as} AS "{alias}"')
+				if part.strip().lower() == "table":
+					modified_fields.append('"table"')
 				else:
 					modified_fields.append(part)
 			args.fields = ",".join(modified_fields)
@@ -231,7 +233,7 @@ class DatabaseQuery:
 			)
 			# args.conditions = re.sub(
 			# 	r'`([^`]+)`\.`([^`]+)`\s+ilike\s+\'(.*?)\'',
-			# 	r"\2::TEXT ILIKE '\3'",
+			# 	r"""  "\1"."\2"::TEXT ILIKE '\3' """,
 			# 	args.conditions
 			# )
 			args.conditions = re.sub(
@@ -239,6 +241,7 @@ class DatabaseQuery:
 				r"`\1`.\2::TEXT \3 '\4'",
 				args.conditions
 			)
+
 
 		if args.conditions:
 			args.conditions = "where " + args.conditions
@@ -252,6 +255,7 @@ class DatabaseQuery:
 		# appear in the order by and group by clause
 		if frappe.db.db_type == "postgres" and args.order_by and args.group_by:
 			args = self.prepare_select_args(args)
+
 		if self.is_invalid_input:
 			return []
 		
@@ -261,7 +265,7 @@ class DatabaseQuery:
 			{group_by}
 			{order_by}
 			{limit}""".format(**args)
-
+		
 		return frappe.db.sql(
 			query,
 			as_dict=not self.as_list,
