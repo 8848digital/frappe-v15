@@ -935,11 +935,11 @@ class DatabaseQuery:
 					value = value.replace("\\", "\\\\").replace("%", "%%")
 
 			elif f.operator == "=" and df and df.fieldtype in ["Link", "Data"]:  # TODO: Refactor if possible
-				value = cstr(f.value) or "''"
+				value = cstr(f.value)
 				fallback = "''"
 
 			elif f.fieldname == "name":
-				value = f.value or "''"
+				value = f.value
 				fallback = "''"
 
 			else:
