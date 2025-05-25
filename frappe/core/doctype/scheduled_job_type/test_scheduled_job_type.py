@@ -72,7 +72,21 @@ class TestScheduledJobType(FrappeTestCase):
 		self.assertEqual(job.next_execution, get_datetime("2019-01-01 00:15:00"))
 		self.assertTrue(job.is_event_due(get_datetime("2019-01-01 00:15:01")))
 		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:05:06")))
-		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:14:59")))
+		self.assertFalse(job.is_event_due(get_datetime("2019-01-01 00:09:59")))
+
+	def test_maintenance_jobs(self):
+		sjt = frappe.new_doc(
+			"Scheduled Job Type",
+			frequency="Hourly Maintenance",
+			last_execution=get_datetime("2019-01-01 23:59:00"),
+		)
+		# Should be within one hour
+		self.assertGreaterEqual(sjt.next_execution, sjt.last_execution)
+		self.assertGreater(add_to_date(sjt.last_execution, hours=1), sjt.next_execution)
+
+		# Next should be exactly one hour away
+		sjt.last_execution = sjt.next_execution
+		self.assertEqual(add_to_date(sjt.last_execution, hours=1), sjt.next_execution)
 
 	def test_cold_start(self):
 		now = now_datetime()

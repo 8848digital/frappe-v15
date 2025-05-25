@@ -3,7 +3,6 @@
 
 import json
 from datetime import datetime, timedelta
-from random import randint
 
 import click
 from croniter import CroniterBadCronError, croniter
@@ -103,6 +102,11 @@ class ScheduledJobType(Document):
 		return self.get_next_execution()
 
 	def get_next_execution(self):
+		# Maintenance jobs run at random time, the time is specific to the site though.
+		# This is done to avoid scheduling all maintenance task on all sites at the same time in
+		# multitenant deployments.
+		maintenance_offset = int(hashlib.sha1(frappe.local.site.encode()).hexdigest(), 16) % 60
+
 		CRON_MAP = {
 			"Yearly": "0 0 1 1 *",
 			"Annual": "0 0 1 1 *",
@@ -112,8 +116,10 @@ class ScheduledJobType(Document):
 			"Weekly Long": "0 0 * * 0",
 			"Daily": "0 0 * * *",
 			"Daily Long": "0 0 * * *",
+			"Daily Maintenance": "0 0 * * *",
 			"Hourly": "0 * * * *",
 			"Hourly Long": "0 * * * *",
+			"Hourly Maintenance": "0 * * * *",
 			"All": f"*/{(frappe.get_conf().scheduler_interval or 240) // 60} * * * *",
 		}
 
@@ -127,10 +133,10 @@ class ScheduledJobType(Document):
 		last_execution = get_datetime(self.last_execution or self.creation)
 		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
 
-		jitter = 0
-		if "Long" in self.frequency:
-			jitter = randint(1, 600)
-		return next_execution + timedelta(seconds=jitter)
+		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
+		if self.frequency in ("Hourly Maintenance", "Daily Maintenance"):
+			next_execution += timedelta(minutes=maintenance_offset)
+		return croniter(self.cron_format, last_execution).get_next(datetime)
 
 	def execute(self):
 		self.scheduler_log = None
