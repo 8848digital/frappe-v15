@@ -939,7 +939,7 @@ class DatabaseQuery:
 				fallback = "''"
 
 			elif f.fieldname == "name":
-				value = f.value or "''"
+				value = f.value if f.value is not None else ""
 				fallback = "''"
 
 			else:
