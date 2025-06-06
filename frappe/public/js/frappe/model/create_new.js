@@ -353,6 +353,7 @@ $.extend(frappe.model, {
 							r.message.name
 						).__run_link_triggers = true;
 					}
+					r.message.name = 'new';
 					frappe.set_route("Form", r.message.doctype, r.message.name);
 				}
 			},
