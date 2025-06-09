@@ -46,7 +46,13 @@ repos:
                 frappe/public/js/lib/.*|
                 frappe/website/doctype/website_theme/website_theme_template.scss
             )$
-
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.22.0
+    hooks:
+      - id: commitlint
+        name: Checking commit subject
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional','conventional-changelog-conventionalcommits']
 
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v9.27.0
@@ -70,3 +76,5 @@ ci:
     autoupdate_schedule: weekly
     skip: []
     submodules: false
+
+

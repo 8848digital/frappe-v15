@@ -26,6 +26,7 @@ def add_user(email, password, username=None, mobile_no=None):
 	user.add_roles("System Manager")
 	frappe.db.commit()
 
+
 class TestAuth(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -46,10 +47,12 @@ class TestAuth(FrappeTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
+		frappe.db.rollback()
 		frappe.delete_doc("User", cls.test_user_email, force=True)
 		frappe.local.request_ip = None
 		frappe.form_dict.email = None
 		frappe.local.response["http_status_code"] = None
+		frappe.db.commit()
 
 	def set_system_settings(self, k, v):
 		frappe.db.set_single_value("System Settings", k, v)
