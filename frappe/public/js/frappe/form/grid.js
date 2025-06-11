@@ -89,10 +89,6 @@ export default class Grid {
 								data-action="delete_rows">
 								${__("Delete")}
 							</button>
-							<button type="button" class="btn btn-xs btn-secondary grid-remove-rows hidden"
-								data-action="duplicate_rows">
-								${__("Duplicate Row")}
-							</button>
 							<button type="button" class="btn btn-xs btn-danger grid-remove-all-rows hidden"
 								data-action="delete_all_rows">
 								${__("Delete All")}
@@ -132,6 +128,7 @@ export default class Grid {
 		this.setup_add_row();
 
 		this.setup_grid_pagination();
+		this.update_idx_and_name();
 
 		this.custom_buttons = {};
 		this.grid_buttons = this.wrapper.find(".grid-buttons");
@@ -152,6 +149,21 @@ export default class Grid {
 		} else {
 			description_wrapper.hide();
 		}
+	}
+
+	update_idx_and_name() {
+		this.data.forEach((d, ri) => {
+			if (d.idx === undefined) {
+				d.idx = ri + 1;
+			}
+			if (d.name === undefined) {
+				d.name = this.get_random_name();
+			}
+		});
+	}
+
+	get_random_name() {
+		return crypto.randomUUID().slice(0, 8);
 	}
 
 	set_doc_url() {
@@ -227,15 +239,6 @@ export default class Grid {
 			row.select(checked);
 			row.row_check?.find(".grid-row-check").prop("checked", checked);
 		}
-	}
-
-	duplicate_rows() {
-		let selected_children = this.get_selected_children();
-		selected_children.forEach((doc) => {
-			this.add_new_row(null, null, true, doc, true);
-			
-		});
-		this.refresh();
 	}
 
 	delete_rows() {
@@ -484,7 +487,7 @@ export default class Grid {
 				d.idx = ri + 1;
 			}
 			if (d.name === undefined) {
-				d.name = "row " + d.idx;
+				d.name = this.get_random_name();
 			}
 			let grid_row;
 			if (this.grid_rows[ri] && !append_row) {
@@ -925,12 +928,11 @@ export default class Grid {
 		setTimeout(() => {
 			this.grid_rows[idx].toggle_editable_row(true);
 			this.grid_rows[idx].row
-				.find('input[type="checkbox"],input[type="Text"],textarea,select')
+				.find('input[type="Text"],textarea,select')
 				.filter(":visible:first")
 				.focus();
 		}, 100);
 	}
-
 
 	setup_visible_columns() {
 		if (this.visible_columns && this.visible_columns.length > 0) return;
