@@ -70,10 +70,6 @@ Object.assign(frappe.model, {
 	},
 
 	add_to_locals: function (doc) {
-		if (!doc.name && doc.doctype == "Sales Invoice") {
-			return;
-		}
-		
 		if (!locals[doc.doctype]) locals[doc.doctype] = {};
 
 		if (!doc.name && doc.__islocal) {
