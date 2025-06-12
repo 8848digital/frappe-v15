@@ -8,7 +8,6 @@
  *
  * @param {string} opts.parent [HTMLElement] Parent element
  * @param {boolean} opts.single_column Whether to include sidebar
- * @param {string} [opts.sidebar_position] Position of sidebar (default None, "Left" or "Right")
  * @param {string} [opts.title] Page title
  * @param {Object} [opts.make_page]
  *
@@ -48,7 +47,7 @@ frappe.ui.Page = class Page {
 
 	setup_scroll_handler() {
 		let last_scroll = 0;
-		$(".main-section").scroll(
+		$(window).scroll(
 			frappe.utils.throttle(() => {
 				$(".page-head").toggleClass("drop-shadow", !!document.documentElement.scrollTop);
 				let current_scroll = document.documentElement.scrollTop;
@@ -87,8 +86,8 @@ frappe.ui.Page = class Page {
 			// nesting under col-sm-12 for consistency
 			this.add_view(
 				"main",
-				'<div class="layout-main">\
-					<div class="layout-main-section-wrapper">\
+				'<div class="row layout-main">\
+					<div class="col-md-12 layout-main-section-wrapper">\
 						<div class="layout-main-section"></div>\
 						<div class="layout-footer hide"></div>\
 					</div>\
@@ -98,22 +97,15 @@ frappe.ui.Page = class Page {
 			this.add_view(
 				"main",
 				`
-				<div class="layout-main layout-two-column">
-					<div class="layout-side-section"></div>
-					<div class="layout-main-section-wrapper">
+				<div class="row layout-main">
+					<div class="col-lg-2 layout-side-section"></div>
+					<div class="col layout-main-section-wrapper">
 						<div class="layout-main-section"></div>
 						<div class="layout-footer hide"></div>
 					</div>
 				</div>
 			`
 			);
-
-			if (this.sidebar_position === "Right") {
-				this.wrapper
-					.find(".layout-main-section-wrapper")
-					.insertBefore(this.wrapper.find(".layout-side-section"));
-				this.wrapper.find(".layout-side-section").addClass("right");
-			}
 		}
 
 		this.setup_page();
@@ -135,7 +127,6 @@ frappe.ui.Page = class Page {
 		this.indicator = this.wrapper.find(".indicator-pill");
 
 		this.page_actions = this.wrapper.find(".page-actions");
-		this.filters = this.wrapper.find(".filters");
 
 		this.btn_primary = this.page_actions.find(".primary-action");
 		this.btn_secondary = this.page_actions.find(".btn-secondary");
@@ -156,6 +147,8 @@ frappe.ui.Page = class Page {
 		if (this.make_page) {
 			this.make_page();
 		}
+
+		this.card_layout && this.main.addClass("frappe-card");
 
 		// keyboard shortcuts
 		let menu_btn = this.menu_btn_group.find("button");
@@ -517,11 +510,11 @@ frappe.ui.Page = class Page {
 		if (standard) {
 			$li.appendTo(parent);
 		} else {
-			this.divider = parent.find(".dropdown-divider.user-action");
+			this.divider = parent.find(".dropdown-divider");
 			if (!this.divider.length) {
-				this.divider = $(
-					'<li class="dropdown-divider user-action visible-xs"></li>'
-				).prependTo(parent);
+				this.divider = $('<li class="dropdown-divider user-action"></li>').prependTo(
+					parent
+				);
 			}
 			$li.addClass("user-action").insertBefore(this.divider);
 		}
@@ -594,7 +587,7 @@ frappe.ui.Page = class Page {
 		return $('<li class="dropdown-divider"></li>').appendTo(this.menu);
 	}
 
-	get_or_add_inner_group_button(label, align_right) {
+	get_or_add_inner_group_button(label) {
 		var $group = this.inner_toolbar.find(
 			`.inner-group-button[data-label="${encodeURIComponent(label)}"]`
 		);
@@ -605,7 +598,7 @@ frappe.ui.Page = class Page {
 						${label}
 						${frappe.utils.icon("select", "xs")}
 					</button>
-					<div role="menu" class="dropdown-menu ${align_right ? "dropdown-menu-right" : ""}"></div>
+					<div role="menu" class="dropdown-menu"></div>
 				</div>`
 			).appendTo(this.inner_toolbar);
 		}
@@ -638,10 +631,7 @@ frappe.ui.Page = class Page {
 			});
 		}
 	}
-	add_divider_to_button_group(group) {
-		var $group = this.get_or_add_inner_group_button(group);
-		$('<li class="dropdown-divider"></li>').appendTo($group.find(".dropdown-menu"));
-	}
+
 	/*
 	 * Add button to button group. If there exists another button with the same label,
 	 * `add_inner_button` will not add the new button to the button group even if the callback
@@ -651,14 +641,13 @@ frappe.ui.Page = class Page {
 	 * @param {object} action - function to be called when button is clicked
 	 * @param {string} group - Label of the group button
 	 */
-	add_inner_button(label, action, group, type = "default", align_right = false) {
+	add_inner_button(label, action, group, type = "default") {
 		var me = this;
 		let _action = function () {
 			let btn = $(this);
 			let response = action();
 			me.btn_disable_enable(btn, response);
 		};
-
 		// Add actions as menu item in Mobile View
 		let menu_item_label = group ? `${group} > ${label}` : label;
 		let menu_item = this.add_menu_item(menu_item_label, _action, false, false, false);
@@ -668,7 +657,7 @@ frappe.ui.Page = class Page {
 		}
 
 		if (group) {
-			var $group = this.get_or_add_inner_group_button(group, align_right);
+			var $group = this.get_or_add_inner_group_button(group);
 			$(this.inner_toolbar).removeClass("hide");
 
 			if (!this.is_in_group_button_dropdown($group.find(".dropdown-menu"), "a", label)) {
@@ -765,7 +754,7 @@ frappe.ui.Page = class Page {
 		}
 		let title_wrapper = this.$title_area.find(".title-text");
 		title_wrapper.html(title);
-		title_wrapper.attr("title", __(tooltip_label) || this.title);
+		title_wrapper.attr("title", tooltip_label || this.title);
 
 		if (tooltip_label) {
 			title_wrapper.tooltip({ delay: { show: 600, hide: 100 }, trigger: "hover" });
@@ -892,9 +881,6 @@ frappe.ui.Page = class Page {
 				delay: { show: 600, hide: 100 },
 				trigger: "hover",
 			});
-		if (parent == this.filters) {
-			this.restyle_field(f);
-		}
 
 		// html fields in toolbar are only for display
 		if (df.fieldtype == "HTML") {
@@ -918,12 +904,6 @@ frappe.ui.Page = class Page {
 		if (df["default"]) f.set_input(df["default"]);
 		this.fields_dict[df.fieldname || df.label] = f;
 		return f;
-	}
-	restyle_field(f) {
-		$(f.wrapper).removeClass("col-md-2").css("margin", "0px");
-
-		$(f.wrapper).find("select").css("width", "140px");
-		$(f.wrapper).find(".select-icon").css("top", "2px");
 	}
 	clear_fields() {
 		this.page_form.empty();
