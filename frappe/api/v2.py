@@ -88,7 +88,20 @@ def count(doctype: str) -> int:
 def create_doc(doctype: str):
 	data = frappe.form_dict
 	data.pop("doctype", None)
+	if (name := data.get("name")) and isinstance(name, str):
+		frappe.flags.api_name_set = True
 	return frappe.new_doc(doctype, **data).insert()
+
+
+def copy_doc(doctype: str, name: str, ignore_no_copy: bool = True):
+	"""Return a clean copy of the given document that can be modified and posted as a new document."""
+	doc = frappe.get_doc(doctype, name)
+	doc.check_permission("read")
+	doc.apply_fieldlevel_read_permissions()
+
+	copy = frappe.copy_doc(doc, ignore_no_copy=ignore_no_copy)
+
+	return copy.as_dict(no_private_properties=True, no_nulls=True)
 
 
 def update_doc(doctype: str, name: str):
@@ -98,6 +111,7 @@ def update_doc(doctype: str, name: str):
 	data.pop("flags", None)
 	doc.update(data)
 	doc.save()
+	doc.apply_fieldlevel_read_permissions()
 
 	# check for child table doctype
 	if doc.get("parenttype"):
@@ -182,6 +196,7 @@ url_rules = [
 	Rule("/document/<doctype>", methods=["GET"], endpoint=document_list),
 	Rule("/document/<doctype>", methods=["POST"], endpoint=create_doc),
 	Rule("/document/<doctype>/<path:name>/", methods=["GET"], endpoint=read_doc),
+	Rule("/document/<doctype>/<path:name>/copy", methods=["GET"], endpoint=copy_doc),
 	Rule("/document/<doctype>/<path:name>/", methods=["PATCH", "PUT"], endpoint=update_doc),
 	Rule("/document/<doctype>/<path:name>/", methods=["DELETE"], endpoint=delete_doc),
 	Rule(
