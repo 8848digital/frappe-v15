@@ -1224,6 +1224,31 @@ from {tables}
 		if ORDER_GROUP_PATTERN.match(_lower):
 			frappe.throw(_("Illegal SQL Query"))
 
+		subquery_indicators = {
+			r"union",
+			r"intersect",
+			r"select\b.*\bfrom",
+		}
+
+		if any(re.search("\b" + pattern + "\b", _lower) for pattern in subquery_indicators):
+			frappe.throw(_("Cannot use sub-query here."))
+
+		blacklisted_sql_functions = {
+			"sleep",
+			"benchmark",
+			"extractvalue",
+			"database",
+			"user",
+			"current_user",
+			"version",
+			"substr",
+			"substring",
+			"updatexml",
+			"load_file",
+			"session_user",
+			"system_user",
+		}
+
 		for field in parameters.split(","):
 			if field.count('"') % 2 or field.count("'") % 2 or field.count("`") % 2:
 				frappe.throw(_("Invalid field name: {0}").format(field))
