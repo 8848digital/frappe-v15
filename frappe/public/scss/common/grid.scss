@@ -2,6 +2,9 @@
 	border: 1px solid var(--table-border-color);
 	border-radius: var(--border-radius-md);
 	color: var(--text-color);
+	&:focus-visible {
+		@include grid-focus();
+	}
 }
 
 .form-grid.error {
@@ -112,6 +115,9 @@
 	}
 }
 
+.grid-static-col:focus-visible {
+	@include grid-focus();
+}
 .grid-static-col,
 .row-index {
 	height: 38px;
