@@ -218,7 +218,7 @@ def get_cards_for_user(doctype, txt, searchfield, start, page_len, filters):
 	numberCard = DocType("Number Card")
 
 	if txt:
-		search_conditions = [numberCard[field].like(f"%{txt}%") for field in searchfields]
+		search_conditions = [numberCard[field].ilike(f"%{txt}%") for field in searchfields]
 
 	condition_query = frappe.qb.get_query(
 		doctype,

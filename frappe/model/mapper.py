@@ -44,7 +44,7 @@ def map_docs(method, source_names, target_doc, args=None):
 	:param args: Args as string to pass to the mapper method
 	E.g. args: "{ 'supplier': 'XYZ' }"'''
 
-	method = frappe.get_attr(method)
+	method = frappe.get_attr(frappe.override_whitelisted_method(method))
 	if method not in frappe.whitelisted:
 		raise frappe.PermissionError
 

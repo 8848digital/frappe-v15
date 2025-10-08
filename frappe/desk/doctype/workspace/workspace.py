@@ -84,6 +84,10 @@ class Workspace(Document):
 			if d.link_type == "Report" and d.is_query_report != 1:
 				d.report_ref_doctype = frappe.get_value("Report", d.link_to, "ref_doctype")
 
+		for shortcut in self.get("shortcuts"):
+			if shortcut.type == "Report":
+				shortcut.report_ref_doctype = frappe.get_value("Report", shortcut.link_to, "ref_doctype")
+
 	def clear_cache(self):
 		super().clear_cache()
 		if self.for_user:
@@ -111,7 +115,7 @@ class Workspace(Document):
 	def on_trash(self):
 		if self.public and not is_workspace_manager():
 			frappe.throw(_("You need to be Workspace Manager to delete a public workspace."))
-			
+
 	def after_delete(self):
 		if disable_saving_as_public():
 			return

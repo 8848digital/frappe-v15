@@ -506,15 +506,6 @@ def get_auto_repeat_entries(date=None):
 	)
 
 
-# called through hooks
-def set_auto_repeat_as_completed():
-	auto_repeat = frappe.get_all("Auto Repeat", filters={"status": ["!=", "Disabled"]})
-	for entry in auto_repeat:
-		doc = frappe.get_doc("Auto Repeat", entry.name)
-		if doc.is_completed():
-			doc.status = "Completed"
-			doc.save()
-
 
 @frappe.whitelist()
 def make_auto_repeat(doctype, docname, frequency="Daily", start_date=None, end_date=None):
