@@ -430,6 +430,10 @@ def get_linked_docs(doctype: str, name: str, linkinfo: dict | None = None) -> di
 	is_target_doctype_table = frappe.get_meta(doctype).istable
 
 	for linked_doctype, link_context in linkinfo.items():
+		# Don't try to fetch linked documents if the user can't read the doctype
+		if not frappe.has_permission(linked_doctype):
+			continue
+
 		linked_doctype_meta = frappe.get_meta(linked_doctype)
 
 		if linked_doctype_meta.issingle:
@@ -560,7 +564,16 @@ def _get_linked_doctypes(doctype, without_ignore_user_permissions_enabled=False)
 			continue
 		ret[dt] = {"get_parent": True}
 
+	custom_doctypes = frappe.get_all(
+		doctype="DocType", filters=[["custom", "=", 1], ["name", "in", list(ret.keys())]], as_list=True
+	)
+
+	custom_doctypes = [item[0] for item in custom_doctypes]
+
 	for dt in list(ret):
+		# if the custom checkbox is checked, then don't load the module of the DocType because it doesn't belong to any app.
+		if dt in custom_doctypes:
+			continue
 		try:
 			doctype_module = load_doctype_module(dt)
 		except (ImportError, KeyError):

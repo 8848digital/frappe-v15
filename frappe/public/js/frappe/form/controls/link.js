@@ -66,7 +66,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		this.setup_awesomeplete();
 		this.bind_change_event();
 	}
-	
+
 	show_link_and_clear_buttons() {
 		if (this.$input.val() && this.get_options()) {
 			const doctype = this.get_options();
@@ -144,7 +144,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			frappe.utils.add_link_title(this.df.options, value, label);
 		}
 
-		return this.validate_and_set_in_model(value, e, true);
+		return this.validate_and_set_in_model(value, e);
 	}
 	parse(value) {
 		return strip_html(value);
@@ -683,14 +683,11 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 
 		// to avoid unnecessary request
 		if (value) {
-			let args = {}
-			this.set_custom_query(args)
 			return frappe
 				.xcall("frappe.client.validate_link", {
 					doctype: options,
 					docname: value,
 					fields: columns_to_fetch,
-					args: args
 				})
 				.then((response) => {
 					if (!this.docname || !columns_to_fetch.length) {
