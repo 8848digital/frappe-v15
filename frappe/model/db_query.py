@@ -256,11 +256,11 @@ class DatabaseQuery:
 			return []
 		
 		query = """select {fields}
-			from {tables}
-			{conditions}
-			{group_by}
-			{order_by}
-			{limit}""".format(**args)
+from {tables}
+{conditions}
+{group_by}
+{order_by}
+{limit}""".format(**args)
 
 		return frappe.db.sql(
 			query,
@@ -890,11 +890,11 @@ class DatabaseQuery:
 				fallback = f"'{FallBackDateTimeStr}'"
 
 			elif f.operator.lower() == "is":
+				fallback = "''"
 				is_postgres = frappe.conf.db_type == "postgres"
 				value = ""
 
 				if f.value == "set":
-					# Use appropriate operators for different DBs
 					f.operator = "IS NOT NULL" if is_postgres else "!="
 					can_be_null = False  # No null comparison in "set"
 					escape = not is_postgres  
@@ -905,17 +905,21 @@ class DatabaseQuery:
 						escape = False  
 					else:
 						f.operator = "="
-						fallback = "''"  
-						can_be_null = True
 						escape = True
 
-				# If null values are allowed and "ifnull" is not already used
-				if can_be_null and "ifnull" not in column_name.lower():
-					column_name = f"ifnull({column_name}, {fallback})"
+				f.value = value = ""
 
 			elif df and df.fieldtype == "Date":
 				value = frappe.db.format_date(f.value)
 				fallback = "'0001-01-01'"
+
+			elif (
+				df
+				and (db_type := cstr(frappe.db.type_map.get(df.fieldtype, " ")[0]))
+				and db_type in ("varchar", "text", "longtext", "smalltext", "json")
+			):
+				value = cstr(f.value)
+				fallback = "''"
 
 			elif (df and df.fieldtype == "Datetime") or isinstance(f.value, datetime.datetime):
 				value = frappe.db.format_datetime(f.value)
@@ -936,12 +940,12 @@ class DatabaseQuery:
 					# because "like" uses backslash (\) for escaping
 					value = value.replace("\\", "\\\\").replace("%", "%%")
 
-			elif f.operator == "=" and df and df.fieldtype in ("Link", "Data", "Dynamic Link"):
-				value = cstr(f.value) or "''"
+			elif f.operator == "=" and df and df.fieldtype in ["Link", "Data"]:  # TODO: Refactor if possible
+				value = cstr(f.value)
 				fallback = "''"
 
 			elif f.fieldname == "name":
-				value = f.value if f.value is not None else ""
+				value = f.value
 				fallback = "''"
 
 			else:
@@ -971,14 +975,42 @@ class DatabaseQuery:
 		else:
 			if df and df.fieldtype not in ("Check", "Float", "Int", "Currency", "Percent"):
 				if frappe.conf.get("db_type") == "postgres":
-					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+					if fallback == value and f.operator == "IS NULL":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "IS NOT NULL":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
 				else:
-					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+					# PERF: try to transform ifnull into two conditions, this way query plan can use index
+					# intersection instead of full table scans.
+					if fallback == value and f.operator == "IS NULL":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "!=":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 			else:
 				if frappe.conf.get("db_type") == "postgres":
-					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+					if fallback == value and f.operator == "IS NULL":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "IS NOT NULL":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
 				else:
-					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+					# PERF: try to transform ifnull into two conditions, this way query plan can use index
+					# intersection instead of full table scans.
+					if fallback == value and f.operator == "=":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "!=":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 		return condition
 
 	def build_match_conditions(self, as_condition=True) -> str | list:
