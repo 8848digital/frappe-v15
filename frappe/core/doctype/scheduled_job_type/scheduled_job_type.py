@@ -1,6 +1,7 @@
 # Copyright (c) 2021, Frappe Technologies and contributors
 # License: MIT. See LICENSE
 
+import hashlib
 import json
 from datetime import datetime, timedelta
 
@@ -29,8 +30,10 @@ class ScheduledJobType(Document):
 			"All",
 			"Hourly",
 			"Hourly Long",
+			"Hourly Maintenance",
 			"Daily",
 			"Daily Long",
+			"Daily Maintenance",
 			"Weekly",
 			"Weekly Long",
 			"Monthly",
@@ -41,7 +44,6 @@ class ScheduledJobType(Document):
 		]
 		last_execution: DF.Datetime | None
 		method: DF.Data
-		next_execution: DF.Datetime | None
 		scheduler_event: DF.Link | None
 		server_script: DF.Link | None
 		stopped: DF.Check
@@ -131,7 +133,6 @@ class ScheduledJobType(Document):
 		# immediately, even when it's meant to be daily.
 		# A dynamic fallback like current time might miss the scheduler interval and job will never start.
 		last_execution = get_datetime(self.last_execution or self.creation)
-		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
 
 		next_execution = croniter(self.cron_format, last_execution).get_next(datetime)
 		if self.frequency in ("Hourly Maintenance", "Daily Maintenance"):
@@ -179,7 +180,7 @@ class ScheduledJobType(Document):
 		frappe.db.commit()
 
 	def get_queue_name(self):
-		return "long" if ("Long" in self.frequency) else "default"
+		return "long" if ("Long" in self.frequency or "Maintenance" in self.frequency) else "default"
 
 	def on_trash(self):
 		frappe.db.delete("Scheduled Job Log", {"scheduled_job_type": self.name})
