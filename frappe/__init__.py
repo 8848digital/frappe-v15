@@ -60,7 +60,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.85.0"
+__version__ = "15.86.0"
 __title__ = "Frappe Framework"
 
 
