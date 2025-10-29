@@ -287,6 +287,25 @@ def get_context(context):
 			"Validation Error",
 			"No {0} found",
 			"Create a new {0}",
+			"Drag and drop files here or upload from",
+			"My Device",
+			"Link",
+			"Camera",
+			"Upload",
+			"Set all public",
+			"Set all private",
+			"Public",
+			"Private",
+			"Optimize",
+			"Drop files here",
+			"Take Photo",
+			"No Images",
+			"Total Images",
+			"Preview",
+			"Submit",
+			"Capture",
+			"Attach a web link",
+			"← Back to upload files",
 			self.title,
 			self.introduction_text,
 			self.success_title,
@@ -331,7 +350,7 @@ def get_context(context):
 			messages.append("Upload")
 			messages.append("Last")
 			messages.append("First")
-			messages.append("No.:Title of the 'row number' column")
+			messages.append("No.")
 
 		# Phone Picker
 		if any(field.fieldtype == "Phone" for field in self.web_form_fields):
