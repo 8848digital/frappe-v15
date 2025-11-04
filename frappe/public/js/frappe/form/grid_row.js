@@ -1249,7 +1249,28 @@ export default class GridRow {
 				};
 
 				// TAB
-				if (e.which === UP_ARROW) {
+				if (e.which === TAB && !e.shiftKey) {
+					var last_column = me.wrapper.find("input:enabled:last").get(0);
+					var is_last_column = $(this).attr("data-last-input") || last_column === this;
+
+					if (is_last_column) {
+						// last row
+						if (me.doc.idx === values.length) {
+							setTimeout(function () {
+								me.grid.add_new_row(null, null, true);
+								me.grid.grid_rows[
+									me.grid.grid_rows.length - 1
+								].toggle_editable_row();
+								me.grid.set_focus_on_row();
+							}, 100);
+						} else {
+							// last column before last row
+							me.grid.grid_rows[me.doc.idx].toggle_editable_row();
+							me.grid.set_focus_on_row(me.doc.idx);
+							return false;
+						}
+					}
+				} else if (e.which === UP_ARROW) {
 					if (me.doc.idx > 1) {
 						var prev = me.grid.grid_rows[me.doc.idx - 2];
 						if (move_up_down(prev)) {
