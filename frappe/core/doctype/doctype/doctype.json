@@ -21,6 +21,7 @@
   "editable_grid",
   "quick_entry",
   "grid_page_length",
+  "rows_threshold_for_grid_search",
   "cb01",
   "track_changes",
   "track_seen",
@@ -695,11 +696,9 @@
    "fieldname": "protect_attached_files",
    "fieldtype": "Check",
    "label": "Protect Attached Files"
-<<<<<<< HEAD
-=======
   },
   {
-   "default": "0",
+   "default": "20",
    "depends_on": "istable",
    "fieldname": "rows_threshold_for_grid_search",
    "fieldtype": "Int",
@@ -710,14 +709,10 @@
    "depends_on": "email_append_to",
    "fieldname": "recipient_account_field",
    "fieldtype": "Data",
-<<<<<<< HEAD
-   "label": "Sender Email Account Field"
->>>>>>> daf8f55458 (feat: auto append email account to the document)
-=======
    "label": "Recipient Account Field"
->>>>>>> b3afe4f4f1 (chore: rename email account field)
   }
  ],
+ "grid_page_length": 50,
  "icon": "fa fa-bolt",
  "idx": 6,
  "index_web_pages_for_search": 1,
@@ -798,15 +793,7 @@
    "link_fieldname": "reference_doctype"
   }
  ],
-<<<<<<< HEAD
-<<<<<<< HEAD
- "modified": "2025-03-27 18:16:53.286909",
-=======
- "modified": "2025-07-19 11:56:19.636440",
->>>>>>> daf8f55458 (feat: auto append email account to the document)
-=======
- "modified": "2025-07-19 12:23:16.296416",
->>>>>>> b3afe4f4f1 (chore: rename email account field)
+ "modified": "2025-09-23 06:48:13.555017",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
