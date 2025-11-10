@@ -60,7 +60,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.78.0"
+__version__ = "15.79.0"
 __title__ = "Frappe Framework"
 
 
@@ -2436,7 +2436,13 @@ def is_setup_complete():
 	if not frappe.db.table_exists("Installed Application"):
 		return is_setup_complete
 
-	if all(frappe.get_all("Installed Application", {"has_setup_wizard": 1}, pluck="is_setup_complete")):
+	if all(
+		frappe.get_all(
+			"Installed Application",
+			{"app_name": ("in", ["frappe", "erpnext"])},
+			pluck="is_setup_complete",
+		)
+	):
 		is_setup_complete = True
 
 	return is_setup_complete
