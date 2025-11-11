@@ -15,7 +15,7 @@ from frappe.desk.doctype.notification_log.notification_log import (
 	get_title_html,
 )
 from frappe.desk.form.document_follow import follow_document
-
+from frappe.utils.data import strip_html
 
 class DuplicateToDoError(frappe.ValidationError):
 	pass
@@ -72,6 +72,10 @@ def add(args=None, *, ignore_permissions=False):
 			from frappe.utils import nowdate
 
 			if not args.get("description"):
+				description = args.get("description") or ""
+				has_content = strip_html(description) or "<img" in description
+
+			if not has_content:
 				args["description"] = _("Assignment for {0} {1}").format(args["doctype"], args["name"])
 
 			d = frappe.get_doc(
