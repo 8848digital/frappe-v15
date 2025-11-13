@@ -338,7 +338,7 @@ class TestMathUtils(FrappeTestCase):
 		self.assertEqual(floor(22.7330), 22)
 		self.assertEqual(floor("24.7"), 24)
 		self.assertEqual(floor("26.7"), 26)
-		self.assertEqual(floor(Decimal(29.45)), 29)
+		self.assertEqual(floor(Decimal("29.45")), 29)
 
 	def test_ceil(self):
 		from decimal import Decimal
@@ -348,7 +348,7 @@ class TestMathUtils(FrappeTestCase):
 		self.assertEqual(ceil(22.7330), 23)
 		self.assertEqual(ceil("24.7"), 25)
 		self.assertEqual(ceil("26.7"), 27)
-		self.assertEqual(ceil(Decimal(29.45)), 30)
+		self.assertEqual(ceil(Decimal("29.45")), 30)
 
 
 class TestHTMLUtils(FrappeTestCase):
@@ -720,7 +720,7 @@ class TestResponse(FrappeTestCase):
 				timedelta(days=10, hours=12, minutes=120, seconds=10),
 			],
 			"float": [
-				Decimal(29.21),
+				Decimal("29.21"),
 			],
 			"doc": [
 				frappe.get_doc("System Settings"),
@@ -987,7 +987,7 @@ class TestMiscUtils(FrappeTestCase):
 		self.assertIsInstance(get_file_timestamp(__file__), str)
 
 	def test_execute_in_shell(self):
-		err, out = execute_in_shell("ls")
+		_err, out = execute_in_shell("ls")
 		self.assertIn("apps", cstr(out))
 
 	def test_get_all_sites(self):

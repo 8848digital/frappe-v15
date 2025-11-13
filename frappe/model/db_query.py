@@ -337,10 +337,10 @@ from {tables}
 		self.set_order_by(args)
 
 		self.validate_order_by_and_group_by(args.order_by)
-		args.order_by = args.order_by and (" order by " + args.order_by) or ""
+		args.order_by = (args.order_by and (" order by " + args.order_by)) or ""
 
 		self.validate_order_by_and_group_by(self.group_by)
-		args.group_by = self.group_by and (" group by " + self.group_by) or ""
+		args.group_by = (self.group_by and (" group by " + self.group_by)) or ""
 
 		return args
 
@@ -421,8 +421,6 @@ from {tables}
 			"concat",
 			"concat_ws",
 			"if",
-			"ifnull",
-			"nullif",
 			"coalesce",
 			"connection_id",
 			"current_user",
@@ -433,6 +431,7 @@ from {tables}
 			"user",
 			"version",
 			"global",
+			"sleep",
 		]
 
 		def _raise_exception():
@@ -451,16 +450,19 @@ from {tables}
 			if SUB_QUERY_PATTERN.match(field):
 				# Check for subquery anywhere in the field, not just at the beginning
 				if "(" in lower_field:
-					location = lower_field.index("(")
-					subquery_token = lower_field[location + 1 :].lstrip().split(" ", 1)[0]
-					if any(keyword in subquery_token for keyword in blacklisted_keywords):
-						_raise_exception()
-
-				function = lower_field.split("(", 1)[0].rstrip()
-				if function in blacklisted_functions:
-					frappe.throw(
-						_("Use of function {0} in field is restricted").format(function), exc=frappe.DataError
-					)
+					# Check all parentheses pairs, not just the first one
+					paren_start = 0
+					while True:
+						location = lower_field.find("(", paren_start)
+						if location == -1:
+							break
+						token = lower_field[location + 1 :].lstrip().split(" ", 1)[0]
+						if any(
+							re.search(r"\b" + re.escape(keyword) + r"\b", token)
+							for keyword in blacklisted_keywords + blacklisted_functions
+						):
+							_raise_exception()
+						paren_start = location + 1
 
 				if "@" in lower_field:
 					# prevent access to global variables
@@ -1224,6 +1226,31 @@ from {tables}
 		if ORDER_GROUP_PATTERN.match(_lower):
 			frappe.throw(_("Illegal SQL Query"))
 
+		subquery_indicators = {
+			r"union",
+			r"intersect",
+			r"select\b.*\bfrom",
+		}
+
+		if any(re.search(r"\b" + pattern + r"\b", _lower) for pattern in subquery_indicators):
+			frappe.throw(_("Cannot use sub-query here."))
+
+		blacklisted_sql_functions = {
+			"sleep",
+			"benchmark",
+			"extractvalue",
+			"database",
+			"user",
+			"current_user",
+			"version",
+			"substr",
+			"substring",
+			"updatexml",
+			"load_file",
+			"session_user",
+			"system_user",
+		}
+
 		for field in parameters.split(","):
 			if field.count('"') % 2 or field.count("'") % 2 or field.count("`") % 2:
 				frappe.throw(_("Invalid field name: {0}").format(field))
@@ -1375,7 +1402,7 @@ def get_between_date_filter(value, df=None):
 	        no change is applied.
 	"""
 
-	fieldtype = df and df.fieldtype or "Datetime"
+	fieldtype = (df and df.fieldtype) or "Datetime"
 
 	from_date = frappe.utils.nowdate()
 	to_date = frappe.utils.nowdate()
