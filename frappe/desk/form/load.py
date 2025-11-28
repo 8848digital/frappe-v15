@@ -325,18 +325,8 @@ def get_communication_data(
 		LIMIT %(cte_limit)s
 	"""
 
-	sqlite_query = f"""
-		SELECT * FROM (
-			SELECT * FROM ({part1})
-			UNION ALL
-			SELECT * FROM ({part2})
-		) AS combined
-		{group_by or ""}
-		ORDER BY communication_date DESC
-		LIMIT %(limit)s
-		OFFSET %(start)s"""
-
-	query = f"""
+	return frappe.db.sql(
+		"""
 		WITH part1 AS ({part1}), part2 AS ({part2})
 		SELECT *
 		FROM (
