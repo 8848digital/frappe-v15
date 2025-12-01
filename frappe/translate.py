@@ -132,16 +132,6 @@ def get_messages_for_boot():
 	return get_all_translations(frappe.local.lang)
 
 
-@frappe.whitelist(allow_guest=True)
-def get_app_translations():
-	if frappe.session.user != "Guest":
-		language = frappe.db.get_value("User", frappe.session.user, "language")
-	else:
-		language = frappe.db.get_single_value("System Settings", "language")
-	
-	return get_all_translations(language)
-
-
 def get_all_translations(lang: str) -> dict[str, str]:
 	"""Load and return the entire translations dictionary for a language from apps + user translations.
 
@@ -157,10 +147,10 @@ def get_all_translations(lang: str) -> dict[str, str]:
 
 		# Get translations for parent language
 		all_translations = get_translations_from_apps(parent_lang).copy() if parent_lang else {}
-		
+
 		# Update with child language translations (overriding parent translations)
 		all_translations.update(get_translations_from_apps(lang))
-		
+
 		with suppress(Exception):
 			# Get translations for parent language
 			all_translations.update(get_user_translations(parent_lang) if parent_lang else {})
