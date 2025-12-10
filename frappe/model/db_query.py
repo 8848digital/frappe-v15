@@ -240,6 +240,21 @@ class DatabaseQuery:
 				args.conditions
 			)
 
+			if args.group_by and args.fields:
+				# Split the SELECT fields into individual components
+				field_parts = [f.strip() for f in args.fields.split(",")]
+
+				cleaned_fields = []
+				for f in field_parts:
+					f_lower = f.lower()
+					# Skip system/meta fields that break PostgreSQL GROUP BY rules
+					if any(x in f_lower for x in ("owner", "modified_by", "_user_tags", "_comments", "_assign")):
+						continue
+					# Keep only valid, GROUP BY-safe fields
+					cleaned_fields.append(f)
+				# Rebuild the sanitized SELECT clause
+				args.fields = ", ".join(cleaned_fields)
+
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
