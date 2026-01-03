@@ -86,6 +86,7 @@ on_session_creation = [
 	"frappe.core.doctype.user.user.notify_admin_access_to_system_manager",
 ]
 
+on_login = "frappe.desk.doctype.note.note._get_unseen_notes"
 on_logout = "frappe.core.doctype.session_default_settings.session_default_settings.clear_session_defaults"
 
 # PDF
@@ -156,6 +157,7 @@ doc_events = {
 			"frappe.automation.doctype.assignment_rule.assignment_rule.apply",
 			"frappe.automation.doctype.assignment_rule.assignment_rule.update_due_date",
 			"frappe.core.doctype.user_type.user_type.apply_permissions_for_non_standard_user_type",
+			"frappe.search.sqlite_search.update_doc_index",
 		],
 		"after_rename": "frappe.desk.notifications.clear_doctype_notifications",
 		"on_cancel": [
@@ -166,6 +168,7 @@ doc_events = {
 		"on_trash": [
 			"frappe.desk.notifications.clear_doctype_notifications",
 			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
+			"frappe.search.sqlite_search.delete_doc_index",
 		],
 		"on_update_after_submit": [
 			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
@@ -204,6 +207,8 @@ scheduler_events = {
 			"frappe.deferred_insert.save_to_db",
 			"frappe.automation.doctype.reminder.reminder.send_reminders",
 			"frappe.model.utils.link_count.update_link_count",
+			"frappe.utils.telemetry.pulse.client.send_queued_events",
+			"frappe.search.sqlite_search.build_index_if_not_exists",
 		],
 		# 10 minutes
 		"0/10 * * * *": [
@@ -292,7 +297,10 @@ setup_wizard_exception = [
 ]
 
 before_migrate = ["frappe.core.doctype.patch_log.patch_log.before_migrate"]
-after_migrate = ["frappe.website.doctype.website_theme.website_theme.after_migrate"]
+after_migrate = [
+	"frappe.website.doctype.website_theme.website_theme.after_migrate",
+	"frappe.search.sqlite_search.build_index_in_background",
+]
 
 otp_methods = ["OTP App", "Email", "SMS"]
 
