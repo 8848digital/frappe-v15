@@ -126,7 +126,6 @@ class User(Document):
 		search_bar: DF.Check
 		send_me_a_copy: DF.Check
 		send_welcome_email: DF.Check
-		show_absolute_datetime_format: DF.Check
 		simultaneous_sessions: DF.Int
 		social_logins: DF.Table[UserSocialLogin]
 		thread_notify: DF.Check
@@ -500,7 +499,17 @@ class User(Document):
 
 		# delete shares
 		frappe.db.delete("DocShare", {"user": self.name})
-		
+		# delete messages
+		table = DocType("Communication")
+		frappe.db.delete(
+			table,
+			filters=(
+				(table.communication_type.isin(["Chat", "Notification"]))
+				& (table.reference_doctype == "User")
+				& ((table.reference_name == self.name) | table.owner == self.name)
+			),
+			run=False,
+		)
 		# unlink contact
 		table = DocType("Contact")
 		frappe.qb.update(table).where(table.user == self.name).set(table.user, None).run()
@@ -793,7 +802,7 @@ def get_all_roles():
 @frappe.whitelist()
 def get_roles(arg=None):
 	"""get roles for a user"""
-	return frappe.get_roles(frappe.form_dict.get("uid", frappe.session.user))
+	return frappe.get_roles(frappe.form_dict["uid"])
 
 
 @frappe.whitelist()
@@ -839,7 +848,9 @@ def update_password(
 	_update_password(user, new_password, logout_all_sessions=cint(logout_all_sessions))
 
 	user_doc, redirect_url = reset_user_data(user)
+
 	user_doc.validate_reset_password()
+
 	# get redirect url from cache
 	redirect_to = frappe.cache.hget("redirect_after_login", user)
 	if redirect_to:
@@ -1354,4 +1365,17 @@ def impersonate(user: str, reason: str):
 	)
 	notification.set("type", "Alert")
 	notification.insert(ignore_permissions=True)
+	# notify user via email too
+	user_email = frappe.db.get_value("User", user, "email")
+	email_message = _(
+		"User {0} has started an impersonation session as you. <br><br><b>Reason provided:</b> {1}"
+	).format(escape_html(impersonator), escape_html(reason))
+
+	frappe.enqueue(
+		method="frappe.sendmail",
+		queue="short",
+		recipients=[user_email],
+		subject=_("Security Alert: Your account is being impersonated"),
+		content=email_message,
+	)
 	frappe.local.login_manager.impersonate(user)
