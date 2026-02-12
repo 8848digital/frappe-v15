@@ -59,6 +59,7 @@
   "form_sidebar",
   "timeline",
   "dashboard",
+  "show_absolute_datetime_format",
   "change_password",
   "new_password",
   "logout_all_sessions",
@@ -812,6 +813,12 @@
    "fieldname": "dashboard",
    "fieldtype": "Check",
    "label": "Dashboard"
+  },
+  {
+   "default": "0",
+   "fieldname": "show_absolute_datetime_format",
+   "fieldtype": "Check",
+   "label": "Show absolute datetime values"
   }
  ],
  "icon": "fa fa-user",
