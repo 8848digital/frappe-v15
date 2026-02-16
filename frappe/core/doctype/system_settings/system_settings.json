@@ -74,6 +74,8 @@
   "store_attached_pdf_document",
   "welcome_email_template",
   "reset_password_template",
+  "section_break_wtgy",
+  "global_enable",
   "files_tab",
   "files_section",
   "max_file_size",
@@ -692,12 +694,22 @@
    "fieldtype": "Link",
    "label": "Currency",
    "options": "Currency"
+  },
+  {
+   "default": "0",
+   "fieldname": "global_enable",
+   "fieldtype": "Check",
+   "label": "Global Enable of Email-Triggered"
+  },
+  {
+   "fieldname": "section_break_wtgy",
+   "fieldtype": "Section Break"
   }
  ],
  "icon": "fa fa-cog",
  "issingle": 1,
  "links": [],
- "modified": "2025-02-21 20:06:55.499937",
+ "modified": "2026-02-15 20:00:10.388079",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "System Settings",
@@ -712,6 +724,7 @@
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

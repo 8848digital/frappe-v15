@@ -19,7 +19,6 @@ from frappe.utils import (
 	split_emails,
 	validate_email_address,
 )
-
 if TYPE_CHECKING:
 	from frappe.core.doctype.communication.communication import Communication
 
@@ -142,7 +141,7 @@ def _make(
 	cc = list_to_str(cc) if isinstance(cc, list) else cc
 	bcc = list_to_str(bcc) if isinstance(bcc, list) else bcc
 
-	comm: "Communication" = frappe.get_doc(
+	comm: Communication = frappe.get_doc(
 		{
 			"doctype": "Communication",
 			"subject": subject,
@@ -166,6 +165,85 @@ def _make(
 	)
 	comm.flags.skip_add_signature = not add_signature
 	comm.insert(ignore_permissions=True)
+	global_enabled = frappe.db.get_single_value(
+		"System Settings", "global_enable"
+	)
+
+	if email_template and global_enabled == 1:
+
+		template_doc = frappe.get_doc("Email Template", email_template)
+
+		# Check if template allows value update
+		if template_doc.enable_value_update != 1:
+			return
+
+		# ---------------------------------------
+		# 1️⃣ Get update rows for current Doctype
+		# ---------------------------------------
+		update_rows = [
+			row for row in template_doc.status_update
+			if row.doctype_name == doctype
+		]
+
+		if not update_rows:
+			return
+
+		# ---------------------------------------
+		# 2️⃣ Build Excluded Fields ONLY for current Doctype
+		# ---------------------------------------
+		excluded_fields = set()
+
+		for ex_row in template_doc.exclude_valuess:
+			if ex_row.doctype_name != doctype:
+				continue
+
+			if ex_row.exclude_values:
+				fields = [
+					f.strip()
+					for f in ex_row.exclude_values.split(",")
+					if f.strip()
+				]
+				excluded_fields.update(fields)
+
+		# ---------------------------------------
+		# 3️⃣ Get record ONLY ONCE
+		# ---------------------------------------
+		record = frappe.get_doc(doctype, name)
+
+		updated = False
+
+		# ---------------------------------------
+		# 4️⃣ Apply updates (skip excluded fields)
+		# ---------------------------------------
+		for row in update_rows:
+
+			update_field = row.update_doc_field
+			update_value = row.update_doc_data
+
+			if not update_field:
+				continue
+
+			# Skip excluded fields
+			if update_field in excluded_fields:
+				continue
+
+			# Check if field exists in document
+			if hasattr(record, update_field):
+
+				current_value = getattr(record, update_field)
+
+				# Update only if value is different
+				if current_value != update_value:
+					setattr(record, update_field, update_value)
+					updated = True
+
+		# ---------------------------------------
+		# 5️⃣ Save only if something changed
+		# ---------------------------------------
+		if updated:
+			record.save(ignore_permissions=True)
+
+
 
 	# if not committed, delayed task doesn't find the communication
 	if attachments:
@@ -194,6 +272,8 @@ def _make(
 	emails_not_sent_to = comm.exclude_emails_list(include_sender=send_me_a_copy)
 
 	return {"name": comm.name, "emails_not_sent_to": ", ".join(emails_not_sent_to)}
+
+
 
 
 def validate_email(doc: "Communication") -> None:
