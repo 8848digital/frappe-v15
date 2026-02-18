@@ -512,11 +512,11 @@ def evaluate_alert(doc: Document, alert, event):
 
 		if alert.condition:
 			if alert.condition_type == "Python" and alert.condition:
-			if not frappe.safe_eval(alert.condition, None, context):
-				return
-			elif alert.condition_type == "Filters" and alert.filters:
-			if not evaluate_filters(doc, json.loads(alert.filters)):
-				return	
+				if not frappe.safe_eval(alert.condition, None, context):
+					return
+				elif alert.condition_type == "Filters" and alert.filters:
+					if not evaluate_filters(doc, json.loads(alert.filters)):
+						return	
 
 		if event == "Value Change" and not doc.is_new():
 			if not frappe.db.has_column(doc.doctype, alert.value_changed):

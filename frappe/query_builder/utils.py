@@ -29,7 +29,6 @@ class db_type_is(Enum):
 DB_TYPE_MAP = {
 	db_type_is.MARIADB: MariaDB,
 	db_type_is.POSTGRES: Postgres,
-	db_type_is.SQLITE: SQLite,
 }
 
 class ImportMapper:
