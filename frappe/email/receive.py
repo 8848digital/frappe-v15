@@ -1,6 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 
+import _socket
 import datetime
 import email
 import email.utils
@@ -13,7 +14,6 @@ import time
 from contextlib import suppress
 from email.header import decode_header
 
-import _socket
 import chardet
 from email_reply_parser import EmailReplyParser
 
@@ -204,7 +204,7 @@ class EmailServer:
 			readonly = False if self.settings.email_sync_rule == "UNSEEN" else True
 
 			self.imap.select(folder, readonly=readonly)
-			response, message = self.imap.uid("search", None, self.settings.email_sync_rule)
+			_response, message = self.imap.uid("search", None, self.settings.email_sync_rule)
 			if message[0]:
 				email_list = message[0].split()
 		else:
@@ -216,7 +216,7 @@ class EmailServer:
 		# compare the UIDVALIDITY of email account and imap server
 		uid_validity = self.settings.uid_validity
 
-		response, message = self.imap.status(folder, "(UIDVALIDITY UIDNEXT)")
+		_response, message = self.imap.status(folder, "(UIDVALIDITY UIDNEXT)")
 		current_uid_validity = self.parse_imap_response("UIDVALIDITY", message[0]) or 0
 
 		uidnext = int(self.parse_imap_response("UIDNEXT", message[0]) or "1")
@@ -267,7 +267,7 @@ class EmailServer:
 	def retrieve_message(self, uid, msg_num, folder):
 		try:
 			if cint(self.settings.use_imap):
-				status, message = self.imap.uid("fetch", uid, "(BODY.PEEK[] BODY.PEEK[HEADER] FLAGS)")
+				_status, message = self.imap.uid("fetch", uid, "(BODY.PEEK[] BODY.PEEK[HEADER] FLAGS)")
 				raw = message[0]
 
 				self.get_email_seen_status(uid, raw[0])
@@ -607,7 +607,7 @@ class Email:
 	def get_thread_id(self):
 		"""Extract thread ID from `[]`"""
 		l = THREAD_ID_PATTERN.findall(self.subject)
-		return l and l[0] or None
+		return (l and l[0]) or None
 
 	def is_reply(self):
 		return bool(self.in_reply_to)
@@ -710,7 +710,9 @@ class InboundMail(Email):
 		if not self.message_id:
 			return
 
-		return Communication.find_one_by_filters(message_id=self.message_id, order_by="creation DESC")
+		return Communication.find_one_by_filters(
+			message_id=self.message_id, sent_or_received="Received", order_by="creation DESC"
+		)
 
 	def is_sender_same_as_receiver(self):
 		return self.from_email == self.email_account.email_id
@@ -756,7 +758,9 @@ class InboundMail(Email):
 		if not self.is_reply():
 			return ""
 
-		communication = Communication.find_one_by_filters(message_id=self.in_reply_to)
+		communication = Communication.find_one_by_filters(
+			message_id=self.in_reply_to, order_by="creation DESC"
+		)
 		if not communication:
 			if self.parent_email_queue() and self.parent_email_queue().communication:
 				communication = Communication.find(self.parent_email_queue().communication, ignore_error=True)

@@ -155,9 +155,13 @@ frappe.ui.form.on("Auto Email Report", {
 					.appendTo(row);
 			});
 
+			// remove mandatory but hidden filters from dialog
+			const dialog_filter_fields = report_filters.filter(
+				(f) => !(f.hidden == 1 && f.reqd == 1)
+			);
 			table.on("click", function () {
-				var dialog = new frappe.ui.Dialog({
-					fields: report_filters,
+				dialog = new frappe.ui.Dialog({
+					fields: dialog_filter_fields,
 					primary_action: function () {
 						var values = this.get_values();
 						if (values) {
