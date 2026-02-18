@@ -3,7 +3,7 @@
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import click
 from croniter import CroniterBadCronError, croniter
