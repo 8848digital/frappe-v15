@@ -167,12 +167,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.link_title_doctype_fields[key],
 				key
 			);
-
-			if (link_title !== undefined) {
-				document.querySelectorAll(`a[data-name="${key}"]`).forEach((el) => {
-					el.innerHTML = link_title;
-				});
-			}
+			document.querySelector(`a[data-name="${key}"]`).innerHTML = link_title;
 		});
 	}
 
@@ -330,6 +325,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	setup_datatable(values) {
+		this.link_title_doctype_fields = [];
 		this.$datatable_wrapper.empty();
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
@@ -1170,7 +1166,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			id = `${doctype}:${fieldname}`;
 		}
 
-		let width = (docfield ? cint(docfield.width) : null) || null;
+		let width = (docfield ? cint(docfield.width) : null) || null; // Assuming cint is defined elsewhere
 		if (this.report_doc) {
 			// load the user saved column width
 			let saved_column_widths = this.report_doc.json.column_widths || {};
@@ -1204,10 +1200,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (Array.isArray(row)) {
 					doc = row.reduce((acc, curr) => {
 						if (!curr.column.docfield) return acc;
-
 						if (
 							curr.column.docfield.fieldtype == "Link" &&
-							frappe.boot.link_title_doctypes.includes(curr.column.docfield.options)
+							frappe.boot.link_title_doctypes.includes(
+								curr.column.docfield.options
+							) &&
+							curr.html
 						) {
 							this.link_title_doctype_fields[curr.content] =
 								curr.column.docfield.options;

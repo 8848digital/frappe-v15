@@ -713,6 +713,7 @@
   }
  ],
  "grid_page_length": 50,
+ "grid_search_field_length": 50,
  "icon": "fa fa-bolt",
  "idx": 6,
  "index_web_pages_for_search": 1,

@@ -839,7 +839,7 @@ export default class GridRow {
 		let show_length =
 			this.grid?.meta?.rows_threshold_for_grid_search > 0
 				? this.grid.meta.rows_threshold_for_grid_search
-				: this.default_rows_threshold_for_grid_search;
+				: 20;
 		this.show_search =
 			this.show_search &&
 			(this.grid?.data?.length >= show_length || this.grid.filter_applied);
