@@ -7,6 +7,11 @@ import datetime
 import json
 import re
 from collections import Counter
+from functools import lru_cache
+
+import sqlparse
+from sqlparse import tokens
+from sqlparse.sql import Function, Parenthesis, Statement
 
 import frappe
 import frappe.defaults
@@ -30,6 +35,22 @@ from frappe.utils import (
 	make_filter_tuple,
 )
 from frappe.utils.data import DateTimeLikeObject, get_datetime, getdate, sbool
+
+
+@lru_cache(maxsize=128)
+def _parse_sql(field: str) -> Statement | None:
+	"""
+	Parse a given SQL statement using `sqlparse`.
+
+	Args:
+		field (str): The SQL statement string to parse.
+
+	Returns:
+		Statement | None: A `sqlparse.sql.Statement` object if parsing succeeds, otherwise `None`.
+	"""
+	if parsed := sqlparse.parse(field):
+		return parsed[0]
+
 
 LOCATE_PATTERN = re.compile(r"locate\([^,]+,\s*[`\"]?name[`\"]?\s*\)", flags=re.IGNORECASE)
 LOCATE_CAST_PATTERN = re.compile(r"locate\(([^,]+),\s*([`\"]?name[`\"]?)\s*\)", flags=re.IGNORECASE)
@@ -240,6 +261,21 @@ class DatabaseQuery:
 				args.conditions
 			)
 
+			if args.group_by and args.fields:
+				# Split the SELECT fields into individual components
+				field_parts = [field.strip() for field in args.fields.split(",")]
+
+				cleaned_fields = []
+				for field in field_parts:
+					field_lower = field.lower()
+					# Skip system fields that break PostgreSQL GROUP BY rules
+					if any(system_fields in field_lower for system_fields in ("owner", "modified_by", "_user_tags", "_comments", "_assign")):
+						continue
+					# Keep only valid, GROUP BY-safe fields
+					cleaned_fields.append(field)
+				# Rebuild the sanitized SELECT clause
+				args.fields = ", ".join(cleaned_fields)
+
 		if args.conditions:
 			args.conditions = "where " + args.conditions
 
@@ -256,11 +292,11 @@ class DatabaseQuery:
 			return []
 		
 		query = """select {fields}
-			from {tables}
-			{conditions}
-			{group_by}
-			{order_by}
-			{limit}""".format(**args)
+from {tables}
+{conditions}
+{group_by}
+{order_by}
+{limit}""".format(**args)
 
 		return frappe.db.sql(
 			query,
@@ -337,10 +373,10 @@ class DatabaseQuery:
 		self.set_order_by(args)
 
 		self.validate_order_by_and_group_by(args.order_by)
-		args.order_by = args.order_by and (" order by " + args.order_by) or ""
+		args.order_by = (args.order_by and (" order by " + args.order_by)) or ""
 
 		self.validate_order_by_and_group_by(self.group_by)
-		args.group_by = self.group_by and (" group by " + self.group_by) or ""
+		args.group_by = (self.group_by and (" group by " + self.group_by)) or ""
 
 		return args
 
@@ -421,8 +457,6 @@ class DatabaseQuery:
 			"concat",
 			"concat_ws",
 			"if",
-			"ifnull",
-			"nullif",
 			"coalesce",
 			"connection_id",
 			"current_user",
@@ -433,7 +467,48 @@ class DatabaseQuery:
 			"user",
 			"version",
 			"global",
+			"sleep",
 		]
+
+		def _find_subqueries(parsed: Statement) -> list:
+			"""
+			Recursively find all subqueries in a parsed SQL statement.
+			"""
+			subqueries = []
+
+			for token in parsed.tokens:
+				if isinstance(token, Parenthesis):
+					# Check for DML token for subquery check
+					is_subquery = False
+					for sub_token in token.tokens:
+						if sub_token.ttype is tokens.DML:
+							is_subquery = True
+							break
+					if is_subquery:
+						subqueries.append(token)
+					# Recursively check for nested subqueries
+					subqueries.extend(_find_subqueries(token))
+				elif token.is_group:
+					subqueries.extend(_find_subqueries(token))
+
+			return subqueries
+
+		def _check_sql_token(statement: Statement) -> None:
+			"""
+			Checks the output of `sqlparse.parse()` to detect blocked functions and subqueries.
+			"""
+			if _find_subqueries(statement):
+				_raise_exception()
+
+			for token in statement.tokens:
+				if isinstance(token, Function):
+					if (name := (token.get_name())) and name.lower() in blacklisted_functions:
+						_raise_exception()
+				if token.ttype == tokens.Keyword:
+					if token.value.lower() in blacklisted_keywords:
+						_raise_exception()
+				if token.is_group:
+					_check_sql_token(token)
 
 		def _raise_exception():
 			frappe.throw(_("Use of sub-query or function is restricted"), frappe.DataError)
@@ -449,18 +524,8 @@ class DatabaseQuery:
 			lower_field = field.lower().strip()
 
 			if SUB_QUERY_PATTERN.match(field):
-				# Check for subquery anywhere in the field, not just at the beginning
-				if "(" in lower_field:
-					location = lower_field.index("(")
-					subquery_token = lower_field[location + 1 :].lstrip().split(" ", 1)[0]
-					if any(keyword in subquery_token for keyword in blacklisted_keywords):
-						_raise_exception()
-
-				function = lower_field.split("(", 1)[0].rstrip()
-				if function in blacklisted_functions:
-					frappe.throw(
-						_("Use of function {0} in field is restricted").format(function), exc=frappe.DataError
-					)
+				# Check all tokens for subquery detection
+				_check_sql_token(_parse_sql(field))
 
 				if "@" in lower_field:
 					# prevent access to global variables
@@ -890,11 +955,11 @@ class DatabaseQuery:
 				fallback = f"'{FallBackDateTimeStr}'"
 
 			elif f.operator.lower() == "is":
+				fallback = "''"
 				is_postgres = frappe.conf.db_type == "postgres"
 				value = ""
 
 				if f.value == "set":
-					# Use appropriate operators for different DBs
 					f.operator = "IS NOT NULL" if is_postgres else "!="
 					can_be_null = False  # No null comparison in "set"
 					escape = not is_postgres  
@@ -905,17 +970,21 @@ class DatabaseQuery:
 						escape = False  
 					else:
 						f.operator = "="
-						fallback = "''"  
-						can_be_null = True
 						escape = True
 
-				# If null values are allowed and "ifnull" is not already used
-				if can_be_null and "ifnull" not in column_name.lower():
-					column_name = f"ifnull({column_name}, {fallback})"
+				f.value = value = ""
 
 			elif df and df.fieldtype == "Date":
 				value = frappe.db.format_date(f.value)
 				fallback = "'0001-01-01'"
+
+			elif (
+				df
+				and (db_type := cstr(frappe.db.type_map.get(df.fieldtype, " ")[0]))
+				and db_type in ("varchar", "text", "longtext", "smalltext", "json")
+			):
+				value = cstr(f.value)
+				fallback = "''"
 
 			elif (df and df.fieldtype == "Datetime") or isinstance(f.value, datetime.datetime):
 				value = frappe.db.format_datetime(f.value)
@@ -936,12 +1005,20 @@ class DatabaseQuery:
 					# because "like" uses backslash (\) for escaping
 					value = value.replace("\\", "\\\\").replace("%", "%%")
 
-			elif f.operator == "=" and df and df.fieldtype in ("Link", "Data", "Dynamic Link"):
-				value = cstr(f.value) or "''"
+			elif f.operator == "=" and df and df.fieldtype in ["Link", "Data"]:  # TODO: Refactor if possible
+				value = cstr(f.value)
 				fallback = "''"
 
 			elif f.fieldname == "name":
-				value = f.value or "''"
+				value = f.value
+				fallback = "''"
+
+			elif (
+				df
+				and (db_type := cstr(frappe.db.type_map.get(df.fieldtype, " ")[0]))
+				and db_type in ("varchar", "text", "longtext", "smalltext", "json")
+			) or f.fieldname in ("owner", "modified_by", "parent", "parentfield", "parenttype"):
+				value = cstr(f.value)
 				fallback = "''"
 
 			else:
@@ -971,14 +1048,42 @@ class DatabaseQuery:
 		else:
 			if df and df.fieldtype not in ("Check", "Float", "Int", "Currency", "Percent"):
 				if frappe.conf.get("db_type") == "postgres":
-					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+					if fallback == value and f.operator == "IS NULL":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "IS NOT NULL":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
 				else:
-					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+					# PERF: try to transform ifnull into two conditions, this way query plan can use index
+					# intersection instead of full table scans.
+					if fallback == value and f.operator == "=":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "!=":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 			else:
 				if frappe.conf.get("db_type") == "postgres":
-					condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
+					if fallback == value and f.operator == "IS NULL":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "IS NOT NULL":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"coalesce({column_name}, {fallback}) {f.operator} {value}"
 				else:
-					condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
+					# PERF: try to transform ifnull into two conditions, this way query plan can use index
+					# intersection instead of full table scans.
+					if fallback == value and f.operator == "=":
+						condition = f"( {column_name} is NULL OR {column_name} {f.operator} {value} )"
+					elif fallback == value and f.operator == "!=":
+						# NULL != anything is always NULL, so won't match
+						condition = f"{column_name} {f.operator} {value}"
+					else:
+						condition = f"ifnull({column_name}, {fallback}) {f.operator} {value}"
 		return condition
 
 	def build_match_conditions(self, as_condition=True) -> str | list:
@@ -1184,9 +1289,40 @@ class DatabaseQuery:
 		if ORDER_GROUP_PATTERN.match(_lower):
 			frappe.throw(_("Illegal SQL Query"))
 
+		subquery_indicators = {
+			r"union",
+			r"intersect",
+			r"select\b.*\bfrom",
+		}
+
+		# Replace doctype names with a hardcoded string "doc"
+		# This is to avoid false positives based on doctype name
+		sanitized = re.sub(r"`tab[^`]*`", " doc ", _lower)
+
+		# Run the subquery checks against the sanitized string
+		if any(re.search(r"\b" + pattern + r"\b", sanitized) for pattern in subquery_indicators):
+			frappe.throw(_("Cannot use sub-query here."))
+
+		blacklisted_sql_functions = {
+			"sleep",
+			"benchmark",
+			"extractvalue",
+			"database",
+			"user",
+			"current_user",
+			"version",
+			"substr",
+			"substring",
+			"updatexml",
+			"load_file",
+			"session_user",
+			"system_user",
+		}
+
 		for field in parameters.split(","):
+			if field.count('"') % 2 or field.count("'") % 2 or field.count("`") % 2:
+				frappe.throw(_("Invalid field name: {0}").format(field))
 			field = field.strip()
-			function = field.split("(", 1)[0].rstrip().lower()
 			full_field_name = "." in field and field.startswith("`tab")
 
 			if full_field_name:
@@ -1196,9 +1332,10 @@ class DatabaseQuery:
 						tbl = tbl[4:-1]
 					frappe.throw(_("Please select atleast 1 column from {0} to sort/group").format(tbl))
 
-			# Check if the function is used anywhere in the field
-			if any(func in function for func in blacklisted_sql_functions):
-				frappe.throw(_("Cannot use {0} in order/group by").format(function))
+			# Check for SQL function using regex with word boundaries and optional whitespace before parenthesis
+			for func in blacklisted_sql_functions:
+				if re.search(r"\b" + re.escape(func) + r"\s*\(", field.lower()):
+					frappe.throw(_("Cannot use {0} in order/group by").format(field))
 
 	def add_limit(self):
 		if self.limit_page_length:
@@ -1333,7 +1470,7 @@ def get_between_date_filter(value, df=None):
 	        no change is applied.
 	"""
 
-	fieldtype = df and df.fieldtype or "Datetime"
+	fieldtype = (df and df.fieldtype) or "Datetime"
 
 	from_date = frappe.utils.nowdate()
 	to_date = frappe.utils.nowdate()

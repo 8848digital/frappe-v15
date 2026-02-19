@@ -997,6 +997,9 @@ class BaseDocument:
 
 				frappe.utils.validate_url(data, throw=True)
 
+			if data_field_options == "IBAN" and data:
+				frappe.utils.validate_iban(data, throw=True)
+
 	def _validate_constants(self):
 		if frappe.flags.in_import or self.is_new() or self.flags.ignore_validate_constants:
 			return
@@ -1226,7 +1229,7 @@ class BaseDocument:
 			doctype = self.meta.get_field(parentfield).options if parentfield else self.doctype
 			df = frappe.get_meta(doctype).get_field(fieldname)
 
-			if df.fieldtype in ("Currency", "Float", "Percent"):
+			if df and df.fieldtype in ("Currency", "Float", "Percent"):
 				self._precision[cache_key][fieldname] = get_field_precision(df, self)
 
 		return self._precision[cache_key][fieldname]

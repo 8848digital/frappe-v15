@@ -6,6 +6,7 @@ import json
 from datetime import date, datetime
 
 import frappe
+import frappe.share
 from frappe import _
 from frappe.contacts.doctype.contact.contact import get_default_contact
 from frappe.desk.doctype.notification_settings.notification_settings import (
@@ -49,6 +50,7 @@ class Event(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
+		from frappe.core.doctype.dynamic_link.dynamic_link import DynamicLink
 		from frappe.desk.doctype.event_participants.event_participants import EventParticipants
 		from frappe.types import DF
 
@@ -65,8 +67,11 @@ class Event(Document):
 		google_calendar_event_id: DF.Data | None
 		google_calendar_id: DF.Data | None
 		google_meet_link: DF.Data | None
+		links: DF.Table[DynamicLink]
 		monday: DF.Check
 		pulled_from_google_calendar: DF.Check
+		reference_docname: DF.DynamicLink | None
+		reference_doctype: DF.Link | None
 		repeat_on: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		repeat_this_event: DF.Check
 		repeat_till: DF.Date | None
@@ -228,7 +233,10 @@ def delete_communication(event, reference_doctype, reference_docname):
 def get_permission_query_conditions(user):
 	if not user:
 		user = frappe.session.user
-	return f"""(`tabEvent`.`event_type`='Public' or `tabEvent`.`owner`={frappe.db.escape(user)})"""
+	query = f"""(`tabEvent`.`event_type`='Public' or `tabEvent`.`owner`={frappe.db.escape(user)})"""
+	if shared_events := frappe.share.get_shared("Event", user=user):
+		query += f" or `tabEvent`.`name` in ({', '.join([frappe.db.escape(e) for e in shared_events])})"
+	return query
 
 
 def has_permission(doc, user):

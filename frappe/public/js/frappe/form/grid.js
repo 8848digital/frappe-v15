@@ -62,7 +62,7 @@ export default class Grid {
 	make() {
 		let template = `
 			<div class="grid-field">
-				<label class="control-label">${__(this.df.label || "")}</label>
+				<label class="control-label">${__(this.df.label || "", null, this.df.parent)}</label>
 				<span class="help"></span>
 				<p class="text-muted small grid-description"></p>
 				<div class="grid-custom-buttons"></div>
@@ -88,6 +88,10 @@ export default class Grid {
 							<button type="button" class="btn btn-xs btn-danger grid-remove-rows hidden"
 								data-action="delete_rows">
 								${__("Delete")}
+							</button>
+							<button type="button" class="btn btn-xs btn-secondary grid-remove-rows hidden"
+								data-action="duplicate_rows">
+								${__("Duplicate Row")}
 							</button>
 							<button type="button" class="btn btn-xs btn-danger grid-remove-all-rows hidden"
 								data-action="delete_all_rows">
@@ -225,6 +229,15 @@ export default class Grid {
 		}
 	}
 
+	duplicate_rows() {
+		let selected_children = this.get_selected_children();
+		selected_children.forEach((doc) => {
+			this.add_new_row(null, null, true, doc, true);
+			
+		});
+		this.refresh();
+	}
+
 	delete_rows() {
 		var dirty = false;
 
@@ -352,6 +365,7 @@ export default class Grid {
 			frm: this.frm,
 			grid: this,
 			configure_columns: true,
+			header_row: true,
 		});
 
 		this.header_search = new GridRow({
@@ -908,8 +922,9 @@ export default class Grid {
 		}
 
 		setTimeout(() => {
+			this.grid_rows[idx].toggle_editable_row(true);
 			this.grid_rows[idx].row
-				.find('input[type="Text"],textarea,select')
+				.find('input[type="checkbox"],input[type="Text"],textarea,select')
 				.filter(":visible:first")
 				.focus();
 		}, 100);
@@ -1245,5 +1260,15 @@ export default class Grid {
 		}
 
 		this.debounced_refresh();
+	}
+
+	get_current_row(target) {
+		let current_row = null;
+		for (let i = 0; i < this.grid_rows.length; i++) {
+			if (this.grid_rows[i].wrapper.get(0).contains(target)) {
+				current_row = i;
+			}
+		}
+		return current_row;
 	}
 }

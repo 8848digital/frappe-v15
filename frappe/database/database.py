@@ -115,8 +115,8 @@ class Database:
 
 	def connect(self):
 		"""Connects to a database as set in `site_config.json`."""
-		self._conn: "MariadbConnection" | "PostgresConnection" = self.get_connection()
-		self._cursor: "MariadbCursor" | "PostgresCursor" = self._conn.cursor()
+		self._conn: MariadbConnection | PostgresConnection = self.get_connection()
+		self._cursor: MariadbCursor | PostgresCursor = self._conn.cursor()
 
 		try:
 			if execution_timeout := get_query_execution_timeout():
@@ -274,11 +274,10 @@ class Database:
 			):
 				raise
 
+		self.log_query(query, values, debug, explain)
 		if debug:
 			time_end = time()
 			frappe.log(f"Execution time: {time_end - time_start:.2f} sec")
-
-		self.log_query(query, values, debug, explain)
 
 		if auto_commit:
 			self.commit()
@@ -1101,7 +1100,7 @@ class Database:
 	def get_default(self, key, parent="__default"):
 		"""Returns default value as a list if multiple or single"""
 		d = self.get_defaults(key, parent)
-		return isinstance(d, list) and d[0] or d
+		return (isinstance(d, list) and d[0]) or d
 
 	@staticmethod
 	def set_default(key, val, parent="__default", parenttype=None):
@@ -1140,12 +1139,14 @@ class Database:
 		self.sql("commit")
 		self.begin()  # explicitly start a new transaction
 
+		self.value_cache.clear()
 		self.after_commit.run()
 
 	def rollback(self, *, save_point=None):
 		"""`ROLLBACK` current transaction. Optionally rollback to a known save_point."""
 		if save_point:
 			self.sql(f"rollback to savepoint {save_point}")
+			self.value_cache.clear()
 		else:
 			self.before_commit.reset()
 			self.after_commit.reset()
@@ -1155,6 +1156,7 @@ class Database:
 			self.sql("rollback")
 			self.begin()
 
+			self.value_cache.clear()
 			self.after_rollback.run()
 
 	def savepoint(self, save_point):
@@ -1473,6 +1475,18 @@ class Database:
 		                        continue # Do some processing.
 		"""
 		raise NotImplementedError
+
+	def get_routines(self):
+		information_schema = frappe.qb.Schema("information_schema")
+		return (
+			frappe.qb.from_(information_schema.routines)
+			.select(information_schema.routines.routine_name)
+			.where(
+				(information_schema.routines.routine_type.isin(["FUNCTION", "PROCEDURE"]))
+				& (information_schema.routines.routine_schema.eq(frappe.conf.db_name))
+			)
+			.run(as_dict=1, pluck="routine_name")
+		)
 
 
 @contextmanager
