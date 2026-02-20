@@ -15,13 +15,17 @@ class EmailTemplate(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
+		from exceleron_cis.exceleron_cis.doctype.document_status_update.document_status_update import DocumentStatusUpdate
+		from frappe.core.doctype.document_exclude_status.document_exclude_status import DocumentExcludeStatus
 		from frappe.types import DF
 
+		enable_value_update: DF.Check
+		exclude_valuess: DF.Table[DocumentExcludeStatus]
 		response: DF.TextEditor | None
 		response_html: DF.Code | None
+		status_update: DF.Table[DocumentStatusUpdate]
 		subject: DF.Data
 		use_html: DF.Check
-
 	# end: auto-generated types
 
 	@property
