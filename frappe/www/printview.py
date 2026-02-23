@@ -55,8 +55,8 @@ def get_context(context):
 		body = get_html(
 			doctype=frappe.form_dict.doctype, name=frappe.form_dict.name, print_format=print_format.name
 		)
-		if cint(frappe.form_dict.trigger_print):
-			body += trigger_print_script
+
+		body += trigger_print_script
 	else:
 		body = get_rendered_template(
 			doc,
@@ -207,7 +207,7 @@ def get_rendered_template(
 		if letter_head.header_script:
 			letter_head.content += f"""
 				<script>
-					{ letter_head.header_script }
+					{letter_head.header_script}
 				</script>
 			"""
 
@@ -216,7 +216,7 @@ def get_rendered_template(
 		if letter_head.footer_script:
 			letter_head.footer += f"""
 				<script>
-					{ letter_head.footer_script }
+					{letter_head.footer_script}
 				</script>
 			"""
 

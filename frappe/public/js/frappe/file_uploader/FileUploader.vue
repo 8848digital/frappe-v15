@@ -525,21 +525,7 @@ function upload_via_file_browser() {
 	});
 }
 
-async function validate_html_url(url) {
-	try {
-		let response = await fetch(url, { method: "HEAD" });
-		let contentType = response.headers.get("Content-Type");
-
-		if (contentType && contentType.includes("text/html")) {
-			return false;
-		}
-	} catch (error) {
-		console.log("Error fetching URL:", error);
-	}
-	return true;
-}
-
-async function upload_via_web_link() {
+function upload_via_web_link() {
 	let file_url = web_link.value.url;
 	if (!file_url) {
 		frappe.msgprint(__("Invalid URL"));
@@ -548,12 +534,6 @@ async function upload_via_web_link() {
 	}
 
 	file_url = decodeURI(file_url);
-	const is_valid = await validate_html_url(file_url);
-
-	if (!is_valid) {
-		frappe.msgprint(__("Invalid or unsupported URL"));
-		return Promise.reject();
-	}
 
 	close_dialog.value = true;
 	return upload_file({

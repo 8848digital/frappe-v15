@@ -7,6 +7,7 @@ Note:
 	- None of the functions present here should be called from python code, their location and
 	  internal implementation can change without treating it as "breaking change".
 """
+
 import json
 from typing import Any
 
@@ -89,6 +90,8 @@ def count(doctype: str) -> int:
 def create_doc(doctype: str):
 	data = frappe.form_dict
 	data.pop("doctype", None)
+	if (name := data.get("name")) and isinstance(name, str):
+		frappe.flags.api_name_set = True
 	doc = frappe.new_doc(doctype, **data)
 
 	if (name := data.get("name")) and isinstance(name, str | int):
