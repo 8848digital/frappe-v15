@@ -715,6 +715,8 @@
   {
    "fieldname": "section_break_wtgy",
    "fieldtype": "Section Break"
+  },
+  {
    "default": "100000",
    "description": "This value specifies the max number of rows that can be rendered in report view. ",
    "fieldname": "max_report_rows",
