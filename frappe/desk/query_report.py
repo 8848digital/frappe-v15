@@ -14,8 +14,9 @@ from frappe.desk.reportview import clean_params, parse_json
 from frappe.model.utils import render_include
 from frappe.modules import get_module_path, scrub
 from frappe.monitor import add_data_to_monitor
-from frappe.permissions import get_role_permissions, has_permission
-from frappe.utils import cint, cstr, flt, format_duration, get_html_format, sbool
+from frappe.permissions import get_role_permissions, get_roles, has_permission
+from frappe.utils import cint, cstr, flt, format_datetime, format_duration, formatdate, get_html_format, sbool
+from frappe.utils.caching import request_cache
 
 
 def get_report_doc(report_name):
@@ -90,7 +91,7 @@ def generate_report_result(
 
 	result = normalize_result(result, columns)
 
-	if report.custom_columns:
+	if report.get("custom_columns"):
 		# saved columns (with custom columns / with different column order)
 		columns = report.custom_columns
 
@@ -110,6 +111,10 @@ def generate_report_result(
 
 	if cint(report.add_total_row) and result and not skip_total_row:
 		result = add_total_row(result, columns, is_tree=is_tree, parent_field=parent_field)
+
+	if isinstance(filters, dict) and filters.get("translate_data"):
+		total_row = cint(report.add_total_row) and result and not skip_total_row
+		result = translate_report_data(result, total_row)
 
 	return {
 		"result": result,
@@ -165,7 +170,7 @@ def get_script(report_name):
 		script += f"\n\n//# sourceURL={scrub(report.name)}__custom"
 
 	if not script:
-		script = "frappe.query_reports['%s']={}" % report_name
+		script = "frappe.query_reports['{}']={{}}".format(report_name)
 
 	return {
 		"script": render_include(script),
@@ -207,7 +212,7 @@ def run(
 
 	result = None
 
-	if sbool(are_default_filters) and report.custom_filters:
+	if sbool(are_default_filters) and report.get("custom_filters"):
 		filters = report.custom_filters
 
 	try:
@@ -229,7 +234,7 @@ def run(
 
 	result["add_total_row"] = report.add_total_row and not result.get("skip_total_row", False)
 
-	if sbool(are_default_filters) and report.custom_filters:
+	if sbool(are_default_filters) and report.get("custom_filters"):
 		result["custom_filters"] = report.custom_filters
 
 	return result
@@ -239,7 +244,7 @@ def add_custom_column_data(custom_columns, result):
 	doctype_names_from_custom_field = []
 	for column in custom_columns:
 		if len(column["fieldname"].split("-")) > 1:
-			# length greater than 1, means that the column is a custom field with confilicting fieldname
+			# length greater than 1, means that the column is a custom field with conflicting fieldname
 			doctype_name = frappe.unscrub(column["fieldname"].split("-")[1])
 			doctype_names_from_custom_field.append(doctype_name)
 		column["fieldname"] = column["fieldname"].split("-")[0]
@@ -252,7 +257,7 @@ def add_custom_column_data(custom_columns, result):
 			for row in result:
 				link_field = column.get("link_field")
 
-				# backwards compatibile `link_field`
+				# backwards compatible `link_field`
 				# old custom reports which use `str` should not break.
 				if isinstance(link_field, str):
 					link_field = frappe._dict({"fieldname": link_field, "names": []})
@@ -308,7 +313,7 @@ def get_prepared_report_result(report, filters, dn="", user=None):
 @frappe.whitelist()
 def export_query():
 	"""export from query reports"""
-	from frappe.desk.utils import get_csv_bytes, pop_csv_params, provide_binary_file
+	from frappe.desk.utils import pop_csv_params
 
 	form_params = frappe._dict(frappe.local.form_dict)
 	csv_params = pop_csv_params(form_params)
@@ -321,11 +326,49 @@ def export_query():
 		raise_exception=True,
 	)
 
+	export_in_background = int(form_params.export_in_background or 0)
+	if export_in_background:
+		user = frappe.session.user
+		user_email = frappe.get_cached_value("User", user, "email")
+		frappe.enqueue(
+			"frappe.desk.query_report.run_export_query_job",
+			user_email=user_email,
+			form_params=form_params,
+			csv_params=csv_params,
+			queue="long",
+			now=frappe.flags.in_test,
+		)
+		frappe.msgprint(
+			_(
+				"Your report is being generated in the background. "
+				f"You will receive an email on {user_email} with a download link once it is ready."
+			)
+		)
+		return
+
+	return _export_query(form_params, csv_params)
+
+
+def run_export_query_job(user_email: str, form_params, csv_params):
+	from frappe.desk.utils import send_report_email
+
+	report_name, file_extension, content = _export_query(form_params, csv_params, populate_response=False)
+	send_report_email(
+		user_email, report_name, file_extension, content, attached_to_name=form_params.report_name
+	)
+
+
+def _export_query(form_params, csv_params, populate_response=True):
+	from frappe.desk.utils import get_csv_bytes, provide_binary_file
+	from frappe.utils.xlsxutils import handle_html, make_xlsx
+
+	report_name = form_params.report_name
 	file_format_type = form_params.file_format_type
 	custom_columns = frappe.parse_json(form_params.custom_columns or "[]")
 	include_indentation = form_params.include_indentation
 	include_filters = form_params.include_filters
 	visible_idx = form_params.visible_idx
+	include_hidden_columns = form_params.include_hidden_columns
 
 	if isinstance(visible_idx, str):
 		visible_idx = json.loads(visible_idx)
@@ -341,35 +384,84 @@ def export_query():
 		)
 		return
 
-	format_duration_fields(data)
+	format_fields(data)
 	xlsx_data, column_widths = build_xlsx_data(
-		data, visible_idx, include_indentation, include_filters=include_filters
+		data,
+		visible_idx,
+		include_indentation,
+		include_filters=include_filters,
+		include_hidden_columns=include_hidden_columns,
 	)
 
 	if file_format_type == "CSV":
-		content = get_csv_bytes(xlsx_data, csv_params)
+		content = get_csv_bytes(
+			[[handle_html(frappe.as_unicode(v)) if isinstance(v, str) else v for v in r] for r in xlsx_data],
+			csv_params,
+		)
 		file_extension = "csv"
 	elif file_format_type == "Excel":
-		from frappe.utils.xlsxutils import make_xlsx
-
 		file_extension = "xlsx"
 		content = make_xlsx(xlsx_data, "Query Report", column_widths=column_widths).getvalue()
+
+	if include_filters:
+		for value in (data.filters or {}).values():
+			suffix = ""
+			if isinstance(value, list):
+				suffix = "_" + ",".join(value)
+			elif isinstance(value, str) and value not in {"Yes", "No"}:
+				suffix = f"_{value}"
+
+			if valid_report_name(report_name, suffix):
+				report_name += suffix
+
+	if not populate_response:
+		return report_name, file_extension, content
 
 	provide_binary_file(report_name, file_extension, content)
 
 
-def format_duration_fields(data: frappe._dict) -> None:
+def valid_report_name(report_name, suffix):
+	if len(report_name) + len(suffix) < 200:
+		return True
+	return False
+
+
+def format_fields(data: frappe._dict) -> None:
 	for i, col in enumerate(data.columns):
-		if col.get("fieldtype") != "Duration":
-			continue
+		if col.get("fieldtype") == "Duration":
+			for row in data.result:
+				index = col.get("fieldname") if isinstance(row, dict) else i
+				val = row.get(index) if isinstance(row, dict) else row[index]
+				if val:
+					row[index] = format_duration(val)
+		elif col.get("fieldtype") == "Currency" and col.get("precision"):
+			for row in data.result:
+				index = col.get("fieldname") if isinstance(row, dict) else i
+				val = row.get(index) if isinstance(row, dict) else row[index]
+				if val:
+					row[index] = round(val, col.get("precision"))
+		elif col.get("fieldtype") == "Date":
+			for row in data.result:
+				index = col.get("fieldname") if isinstance(row, dict) else i
+				val = row.get(index) if isinstance(row, dict) else row[index]
+				if val:
+					row[index] = formatdate(val)
+		elif col.get("fieldtype") == "Datetime":
+			for row in data.result:
+				index = col.get("fieldname") if isinstance(row, dict) else i
+				val = row.get(index) if isinstance(row, dict) else row[index]
+				if val:
+					row[index] = format_datetime(val)
 
-		for row in data.result:
-			index = col.get("fieldname") if isinstance(row, dict) else i
-			if row[index]:
-				row[index] = format_duration(row[index])
 
-
-def build_xlsx_data(data, visible_idx, include_indentation, include_filters=False, ignore_visible_idx=False):
+def build_xlsx_data(
+	data,
+	visible_idx,
+	include_indentation,
+	include_filters=False,
+	ignore_visible_idx=False,
+	include_hidden_columns=False,
+):
 	EXCEL_TYPES = (
 		str,
 		bool,
@@ -392,10 +484,9 @@ def build_xlsx_data(data, visible_idx, include_indentation, include_filters=Fals
 	result = []
 	column_widths = []
 
-	if cint(include_filters):
+	if cint(include_filters) and data.filters:
 		filter_data = []
-		filters = data.filters
-		for filter_name, filter_value in filters.items():
+		for filter_name, filter_value in data.filters.items():
 			if not filter_value:
 				continue
 			filter_value = (
@@ -409,7 +500,7 @@ def build_xlsx_data(data, visible_idx, include_indentation, include_filters=Fals
 
 	column_data = []
 	for column in data.columns:
-		if column.get("hidden"):
+		if column.get("hidden") and not cint(include_hidden_columns):
 			continue
 		column_data.append(_(column.get("label")))
 		column_width = cint(column.get("width", 0))
@@ -425,7 +516,7 @@ def build_xlsx_data(data, visible_idx, include_indentation, include_filters=Fals
 			row_data = []
 			if isinstance(row, dict):
 				for col_idx, column in enumerate(data.columns):
-					if column.get("hidden"):
+					if column.get("hidden") and not cint(include_hidden_columns):
 						continue
 					label = column.get("label")
 					fieldname = column.get("fieldname")
@@ -532,7 +623,7 @@ def get_data_for_custom_report(columns, result):
 
 	for column in columns:
 		if link_field := column.get("link_field"):
-			# backwards compatibile `link_field`
+			# backwards compatible `link_field`
 			# old custom reports which use `str` should not break
 			if isinstance(link_field, str):
 				link_field = frappe._dict({"fieldname": link_field, "names": []})
@@ -547,7 +638,10 @@ def get_data_for_custom_report(columns, result):
 					names.append(row.get(row_key))
 			names = list(set(names))
 
-			doc_field_value_map[(doctype, fieldname)] = get_data_for_custom_field(doctype, fieldname, names)
+			if names:
+				doc_field_value_map[(doctype, fieldname)] = get_data_for_custom_field(
+					doctype, fieldname, names
+				)
 	return doc_field_value_map
 
 
@@ -683,8 +777,17 @@ def has_match(
 						match = False
 						break
 
+					if match:
+						match = has_unrestricted_read_access(doctype=ref_doctype, user=frappe.session.user)
+
 				# each doctype could have multiple conflicting user permission doctypes, hence using OR
 				# so that even if one of the sets allows a match, it is true
+				if match:
+					if not frappe.has_permission(
+						doctype=ref_doctype, ptype="read", throw=False, ignore_share_permissions=True
+					):
+						match = False
+
 				matched_for_doctype = matched_for_doctype or match
 
 				if matched_for_doctype:
@@ -697,6 +800,32 @@ def has_match(
 			break
 
 	return resultant_match
+
+
+@request_cache
+def has_unrestricted_read_access(doctype, user):
+	roles = get_roles(user)
+
+	permission_filters = {
+		"parent": doctype,
+		"role": ["in", roles],
+		"permlevel": 0,
+		"read": 1,
+		"if_owner": 0,
+	}
+
+	standard_perm_exists = frappe.db.exists(
+		"DocPerm",
+		permission_filters,
+	)
+
+	custom_perm_exists = frappe.db.exists(
+		"Custom DocPerm",
+		permission_filters,
+	)
+
+	has_perm = bool(custom_perm_exists or standard_perm_exists)
+	return has_perm
 
 
 def get_linked_doctypes(columns, data):
@@ -822,3 +951,10 @@ def get_custom_script(report_name):
 				all_filtetrs += js_content + ','
 	return all_filtetrs + ']'
 
+
+def translate_report_data(data, total_row):
+	for d in data[:-1] if total_row else data:
+		for field, value in d.items():
+			if isinstance(value, str):
+				d[field] = _(value)
+	return data

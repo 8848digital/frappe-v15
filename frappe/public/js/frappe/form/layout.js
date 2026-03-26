@@ -23,7 +23,9 @@ frappe.ui.form.Layout = class Layout {
 			this.parent = this.body;
 		}
 		this.wrapper = $('<div class="form-layout">').appendTo(this.parent);
-		this.message = $('<div class="form-message hidden"></div>').appendTo(this.wrapper);
+		this.message = $('<div class="form-message-container hidden"></div>').appendTo(
+			this.wrapper
+		);
 		this.page = $('<div class="form-page"></div>').appendTo(this.wrapper);
 
 		if (!this.fields) {
@@ -34,7 +36,6 @@ frappe.ui.form.Layout = class Layout {
 			this.setup_tabbed_layout();
 		}
 
-		this.setup_tab_events();
 		this.frm && this.setup_tooltip_events();
 		this.render();
 	}
@@ -97,26 +98,37 @@ frappe.ui.form.Layout = class Layout {
 		return fields;
 	}
 
-	show_message(html, color) {
-		if (this.message_color) {
-			// remove previous color
-			this.message.removeClass(this.message_color);
-		}
-		let close_message = $(`<div class="close-message">${frappe.utils.icon("close")}</div>`);
-		this.message_color =
-			color && ["yellow", "blue", "red", "green", "orange"].includes(color) ? color : "blue";
-		if (html) {
-			if (html.substr(0, 1) !== "<") {
-				// wrap in a block
-				html = "<div>" + html + "</div>";
-			}
-			this.message.removeClass("hidden").addClass(this.message_color);
-			$(html).appendTo(this.message);
-			close_message.appendTo(this.message);
-			close_message.on("click", () => this.message.empty().addClass("hidden"));
-		} else {
+	show_message(html, color, permanent = false) {
+		if (!html) {
 			this.message.empty().addClass("hidden");
+			return;
 		}
+
+		// Prepare Block
+		let $html;
+		if (!frappe.utils.is_html(html)) {
+			// wrap in a block if `html` does not contain html tags
+			$html = $("<div class='form-message'></div>").text(html);
+		} else {
+			// Wrap in a block just in case the string does not begin with a tag
+			// as Jquery assumes it to be a CSS selector and breaks.
+			$html = $("<div class='form-message'>").html(html);
+		}
+
+		// Add close button to block if not permanent
+		const close_message = $(`<div class="close-message">${frappe.utils.icon("close")}</div>`);
+		if (!permanent) {
+			close_message.appendTo($html);
+			close_message.on("click", () => $html.remove());
+		}
+
+		// Add block color and append to parent container `form-message-container`
+		const block_color =
+			color && ["yellow", "blue", "red", "green", "orange"].includes(color) ? color : "blue";
+		$html.addClass(block_color).appendTo(this.message);
+
+		// Show parent container if hidden
+		this.message.removeClass("hidden");
 	}
 
 	render(new_fields) {
@@ -481,12 +493,6 @@ frappe.ui.form.Layout = class Layout {
 		}
 	}
 
-	refresh_section_count() {
-		this.wrapper.find(".section-count-label:visible").each(function (i) {
-			$(this).html(i + 1);
-		});
-	}
-
 	setup_events() {
 		let last_scroll = 0;
 		let tabs_list = $(".form-tabs-list");
@@ -674,40 +680,16 @@ frappe.ui.form.Layout = class Layout {
 			build dependants' dictionary
 		*/
 
-		let has_dep = false;
-
 		const fields = this.fields_list.concat(this.tabs);
 
-		for (let fkey in fields) {
-			let f = fields[fkey];
-			if (f.df.depends_on || f.df.mandatory_depends_on || f.df.read_only_depends_on) {
-				has_dep = true;
-				break;
-			}
-		}
-
-		if (!has_dep) return;
-
 		// show / hide based on values
-		for (let i = fields.length - 1; i >= 0; i--) {
-			let f = fields[i];
-			f.guardian_has_value = true;
+		for (const f of fields) {
 			if (f.df.depends_on) {
-				// evaluate guardian
+				const should_hide = !this.evaluate_depends_on_value(f.df.depends_on);
 
-				f.guardian_has_value = this.evaluate_depends_on_value(f.df.depends_on);
-
-				// show / hide
-				if (f.guardian_has_value) {
-					if (f.df.hidden_due_to_dependency) {
-						f.df.hidden_due_to_dependency = false;
-						f.refresh();
-					}
-				} else {
-					if (!f.df.hidden_due_to_dependency) {
-						f.df.hidden_due_to_dependency = true;
-						f.refresh();
-					}
+				if (f.df.hidden_due_to_dependency !== should_hide) {
+					f.df.hidden_due_to_dependency = should_hide;
+					f.refresh();
 				}
 			}
 
@@ -722,9 +704,13 @@ frappe.ui.form.Layout = class Layout {
 					"read_only"
 				);
 			}
-		}
 
-		this.refresh_section_count();
+			if (f.df.fieldtype === "Table") {
+				for (const row of f.grid?.grid_rows || []) {
+					row?.refresh_dependency();
+				}
+			}
+		}
 	}
 
 	set_dependant_property(condition, fieldname, property) {
@@ -778,9 +764,6 @@ frappe.ui.form.Layout = class Layout {
 		} else if (expression.substr(0, 5) == "eval:") {
 			try {
 				out = frappe.utils.eval(expression.substr(5), { doc, parent });
-				if (parent && parent.istable && expression.includes("is_submittable")) {
-					out = true;
-				}
 			} catch (e) {
 				frappe.throw(__('Invalid "depends_on" expression'));
 			}

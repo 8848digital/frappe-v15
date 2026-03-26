@@ -14,6 +14,7 @@ Example:
 
 
 """
+
 import json
 import os
 from datetime import datetime
@@ -23,6 +24,7 @@ import click
 import frappe
 from frappe import _, _lt
 from frappe.model import (
+	NO_VALUE_FIELDS,
 	child_table_fields,
 	data_fieldtypes,
 	default_fields,
@@ -40,7 +42,6 @@ from frappe.model.workflow import get_workflow_name
 from frappe.modules import load_doctype_module
 from frappe.types import DocRef
 from frappe.utils import cast, cint, cstr
-from frappe.utils.data import add_to_date, get_datetime
 
 DEFAULT_FIELD_LABELS = {
 	"name": _lt("ID"),
@@ -56,11 +57,6 @@ DEFAULT_FIELD_LABELS = {
 	"_assign": _lt("Assigned To"),
 }
 
-# When number of rows in a table exceeds this number, we disable certain features automatically.
-# This is done to avoid hammering the site with unnecessary requests that are just meant for
-# improving UX.
-LARGE_TABLE_SIZE_THRESHOLD = 100_000
-LARGE_TABLE_RECENCY_THRESHOLD = 30  # days
 
 def get_meta(doctype, cached=True) -> "Meta":
 	cached = cached and isinstance(doctype, str)
@@ -148,7 +144,6 @@ class Meta(Document):
 		self.get_valid_columns()
 		self.set_custom_permissions()
 		self.add_custom_links_and_actions()
-		self.check_if_large_table()
 
 	def as_dict(self, no_nulls=False):
 		def serialize(doc):
@@ -291,7 +286,7 @@ class Meta(Document):
 			link_fields = [df.fieldname for df in self.get_link_fields()]
 
 		for df in self.fields:
-			if df.fieldtype not in no_value_fields and getattr(df, "fetch_from", None):
+			if df.fieldtype not in NO_VALUE_FIELDS and getattr(df, "fetch_from", None):
 				if link_fieldname:
 					if df.fetch_from.startswith(link_fieldname + "."):
 						out.append(df)
@@ -439,20 +434,6 @@ class Meta(Document):
 
 				self.set(fieldname, new_list)
 
-	def check_if_large_table(self):
-		"""Apply some heuristics to detect large tables.
-
-		UI code can use this information to adapt accordingly."""
-		# Note: `modified` should be used in older versions.
-		self.is_large_table = False
-		if self.istable or not frappe.db.table_exists(self.name):  # During install, new migrate
-			return
-
-		if frappe.db.estimate_count(self.name) > LARGE_TABLE_SIZE_THRESHOLD:
-			recent_change = frappe.db.get_value(self.name, {}, "modified", order_by="modified desc")
-			if get_datetime(recent_change) > add_to_date(None, days=-1 * LARGE_TABLE_RECENCY_THRESHOLD):
-				self.is_large_table = True
-				
 	def init_field_caches(self):
 		# field map
 		self._fields = {field.fieldname: field for field in self.fields}
@@ -584,7 +565,7 @@ class Meta(Document):
 	def get_high_permlevel_fields(self):
 		"""Build list of fields with high perm level and all the higher perm levels defined."""
 		if not hasattr(self, "high_permlevel_fields"):
-			self.high_permlevel_fields = [df for df in self.fields if df.permlevel > 0]
+			self.high_permlevel_fields = [df for df in self.fields if (df.permlevel or 0) > 0]
 		return self.high_permlevel_fields
 
 	def get_permitted_fieldnames(
@@ -618,7 +599,8 @@ class Meta(Document):
 		)
 
 		if 0 not in permlevel_access and permission_type in ("read", "select"):
-			if frappe.share.get_shared(self.name, user, rights=[permission_type], limit=1):
+			check_doctype = parenttype if self.istable and parenttype else self.name
+			if frappe.share.get_shared(check_doctype, user, rights=["read"], limit=1):
 				permlevel_access.add(0)
 
 		permitted_fieldnames.extend(
@@ -632,7 +614,7 @@ class Meta(Document):
 
 	def get_permlevel_access(self, permission_type="read", parenttype=None, *, user=None):
 		has_access_to = []
-		roles = frappe.get_roles(user)
+		roles = set(frappe.get_roles(user))
 		for perm in self.get_permissions(parenttype):
 			if perm.role in roles and perm.get(permission_type):
 				if perm.permlevel not in has_access_to:
@@ -748,7 +730,7 @@ def is_single(doctype):
 	try:
 		return frappe.db.get_value("DocType", doctype, "issingle")
 	except IndexError:
-		raise Exception("Cannot determine whether %s is single" % doctype)
+		raise Exception("Cannot determine whether {} is single".format(doctype))
 
 
 def get_parent_dt(dt):
@@ -826,7 +808,7 @@ def get_field_precision(df, doc=None, currency=None):
 		precision = cint(frappe.db.get_default("currency_precision"))
 		if not precision:
 			number_format = frappe.db.get_default("number_format") or "#,###.##"
-			decimal_str, comma_str, precision = get_number_format_info(number_format)
+			_decimal_str, _comma_str, precision = get_number_format_info(number_format)
 	else:
 		precision = cint(frappe.db.get_default("float_precision")) or 3
 

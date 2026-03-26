@@ -1,5 +1,6 @@
 import re
 from ast import literal_eval
+from functools import lru_cache
 from types import BuiltinFunctionType
 from typing import TYPE_CHECKING,TypeAlias
 
@@ -28,10 +29,6 @@ WORDS_PATTERN = re.compile(r"\w+")
 BRACKETS_PATTERN = re.compile(r"\(.*?\)|$")
 SQL_FUNCTIONS = [sql_function.value for sql_function in SqlFunctions]
 COMMA_PATTERN = re.compile(r",\s*(?![^()]*\))")
-
-# less restrictive version of frappe.core.doctype.doctype.doctype.START_WITH_LETTERS_PATTERN
-# to allow table names like __Auth
-TABLE_NAME_PATTERN = re.compile(r"^[\w -]*$", flags=re.ASCII)
 
 
 
@@ -64,7 +61,6 @@ class Engine:
 			self.doctype = get_doctype_name(table.get_sql())
 		else:
 			self.doctype = table
-			self.validate_doctype()
 			self.table = frappe.qb.DocType(table)
 
 		if update:
@@ -96,10 +92,6 @@ class Engine:
 			self.query = self.query.groupby(group_by)
 
 		return self.query
-
-	def validate_doctype(self):
-		if not TABLE_NAME_PATTERN.match(self.doctype):
-			frappe.throw(_("Invalid DocType: {0}").format(self.doctype))
 
 	def apply_fields(self, fields):
 		# add fields
@@ -248,9 +240,11 @@ class Engine:
 							has_primitive_operator = True
 							field = operator_mapping(
 								*map(
-									lambda field: Field(field.strip())
-									if "`" not in field
-									else PseudoColumnMapper(field.strip()),
+									lambda field: (
+										Field(field.strip())
+										if "`" not in field
+										else PseudoColumnMapper(field.strip())
+									),
 									arg.split(_operator),
 								),
 							)
@@ -280,18 +274,14 @@ class Engine:
 			return Function(func, *_args, alias=alias or None)
 
 	def sanitize_fields(self, fields: str | list | tuple):
-		def _sanitize_field(field: str):
-			if not isinstance(field, str):
-				return field
-			stripped_field = sqlparse.format(field, strip_comments=True, keyword_case="lower")
-			if self.is_mariadb:
-				return MARIADB_SPECIFIC_COMMENT.sub("", stripped_field)
-			return stripped_field
 
 		if isinstance(fields, list | tuple):
-			return [_sanitize_field(field) for field in fields]
+			return [
+				_sanitize_field(field, self.is_mariadb) if isinstance(field, str) else field
+				for field in fields
+			]
 		elif isinstance(fields, str):
-			return _sanitize_field(fields)
+			return _sanitize_field(fields, self.is_mariadb)
 
 		return fields
 
@@ -531,7 +521,7 @@ def literal_eval_(literal):
 def has_function(field):
 	_field = field.casefold() if (isinstance(field, str) and "`" not in field) else field
 	if not issubclass(type(_field), Criterion):
-		if any([f"{func}(" in _field for func in SQL_FUNCTIONS]):
+		if any([f"{func}(" in _field for func in SQL_FUNCTIONS]):  # ) <- ignore this comment.
 			return True
 
 
@@ -565,3 +555,14 @@ def get_nested_set_hierarchy_result(doctype: str, name: str, hierarchy: str) -> 
 			.run(pluck=True)
 		)
 	return result
+
+@lru_cache(maxsize=1024)
+def _sanitize_field(field: str, is_mariadb):
+	if field == "*" or not SPECIAL_CHAR_PATTERN.search(field):
+		# Skip checking if there are no special characters
+		return field
+
+	stripped_field = sqlparse.format(field, strip_comments=True, keyword_case="lower")
+	if is_mariadb:
+		return MARIADB_SPECIFIC_COMMENT.sub("", stripped_field)
+	return stripped_field

@@ -69,6 +69,18 @@ class Workspace(Document):
 
 		if self.public and not is_workspace_manager() and not disable_saving_as_public():
 			frappe.throw(_("You need to be Workspace Manager to edit this document"))
+
+		if (
+			not self.public
+			and self.for_user
+			and self.for_user != frappe.session.user
+			and not is_workspace_manager()
+		):
+			frappe.throw(
+				_("You are not allowed to edit this workspace"),
+				frappe.PermissionError,
+			)
+
 		if self.has_value_changed("title"):
 			validate_route_conflict(self.doctype, self.title)
 		else:
@@ -83,6 +95,10 @@ class Workspace(Document):
 		for d in self.get("links"):
 			if d.link_type == "Report" and d.is_query_report != 1:
 				d.report_ref_doctype = frappe.get_value("Report", d.link_to, "ref_doctype")
+
+		for shortcut in self.get("shortcuts"):
+			if shortcut.type == "Report":
+				shortcut.report_ref_doctype = frappe.get_value("Report", shortcut.link_to, "ref_doctype")
 
 	def clear_cache(self):
 		super().clear_cache()
@@ -111,7 +127,7 @@ class Workspace(Document):
 	def on_trash(self):
 		if self.public and not is_workspace_manager():
 			frappe.throw(_("You need to be Workspace Manager to delete a public workspace."))
-			
+
 	def after_delete(self):
 		if disable_saving_as_public():
 			return

@@ -78,7 +78,7 @@ def update_reports(doctype, old_fieldname, new_fieldname):
 		"""select name, ref_doctype, json from tabReport
 		where report_type = 'Report Builder' and ifnull(is_standard, 'No') = 'No'
 		and json like %s and json like %s""",
-		("%%%s%%" % old_fieldname, "%%%s%%" % doctype),
+		("%{}%".format(old_fieldname), "%{}%".format(doctype)),
 		as_dict=True,
 	)
 
@@ -167,8 +167,8 @@ def update_user_settings(doctype, old_fieldname, new_fieldname):
 
 	user_settings = frappe.db.sql(
 		''' select user, doctype, data from `__UserSettings`
-		where doctype=%s and data like "%%%s%%"''',
-		(doctype, old_fieldname),
+		where doctype=%s and data like %s''',
+		(doctype, f"%{old_fieldname}%"),
 		as_dict=1,
 	)
 

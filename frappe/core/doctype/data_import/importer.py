@@ -76,6 +76,7 @@ class Importer:
 
 		# parse docs from rows
 		payloads = self.import_file.get_payloads_for_import()
+
 		# dont import if there are non-ignorable warnings
 		warnings = self.import_file.get_warnings()
 		warnings = [w for w in warnings if w.get("type") != "info"]
@@ -177,6 +178,7 @@ class Importer:
 					)
 
 					log_index += 1
+
 					if not self.data_import.status == "Partial Success":
 						self.data_import.db_set("status", "Partial Success")
 
@@ -188,8 +190,7 @@ class Importer:
 					frappe.clear_messages()
 
 					# rollback if exception
-					if self.doctype != "Bank Transaction":
-						frappe.db.rollback()
+					frappe.db.rollback()
 
 					create_import_log(
 						self.data_import.name,
@@ -475,6 +476,35 @@ class ImportFile:
 				title=_("Template Error"),
 			)
 
+	def validate_columns_of_import_file(self, data):
+		mandatory_fields = self.get_mandatory_fields()
+		headers = data[0] if data else []
+
+		if len(headers) == 1 and ";" in headers[0]:
+			return
+
+		if not len(headers):
+			frappe.throw(_("Import template should contain a Header row."), title=_("Template Error"))
+
+		for field in mandatory_fields:
+			if field not in headers and _(field) not in headers:
+				frappe.throw(
+					_(
+						"Mandatory field {0} is missing in the import template for {1}. Please correct the template and try again."
+					).format(frappe.bold(field), frappe.bold(self.doctype)),
+					title=_("Template Error"),
+				)
+
+	def get_mandatory_fields(self):
+		meta = frappe.get_meta(self.doctype)
+		mandatory_fields = []
+
+		for df in meta.fields:
+			if df.reqd and df.fieldtype not in no_value_fields:
+				mandatory_fields.append(df.label)
+
+		return mandatory_fields
+
 	def get_data_for_import_preview(self):
 		"""Adds a serial number column as the first column"""
 
@@ -610,6 +640,7 @@ class ImportFile:
 		elif extension == "xls":
 			data = read_xls_file_from_attached_file(content)
 
+		self.validate_columns_of_import_file(data)
 		return data
 
 
@@ -996,8 +1027,11 @@ class Column:
 
 		if self.df.fieldtype == "Link":
 			# find all values that dont exist
-			values = list({cstr(v) for v in self.column_values if v})
-			exists = [cstr(d.name) for d in frappe.get_all(self.df.options, filters={"name": ("in", values)})]
+			transform = (lambda v: cstr(v).lower()) if frappe.db.db_type == "mariadb" else cstr
+			values = list({transform(v) for v in self.column_values if v})
+			exists = [
+				transform(d.name) for d in frappe.get_all(self.df.options, filters={"name": ("in", values)})
+			]
 			not_exists = list(set(values) - set(exists))
 			if not_exists:
 				missing_values = ", ".join(not_exists)
@@ -1106,7 +1140,8 @@ def build_fields_dict_for_column_matching(parent_doctype):
 	doctypes = [(parent_doctype, None)] + [(df.options, df) for df in parent_meta.get_table_fields()]
 
 	for doctype, table_df in doctypes:
-		translated_table_label = _(table_df.label) if table_df else None
+		table_ref = (table_df.label or table_df.fieldname) if table_df else None
+		translated_table_label = _(table_ref) if table_ref else None
 
 		# name field
 		name_df = frappe._dict(
@@ -1128,7 +1163,7 @@ def build_fields_dict_for_column_matching(parent_doctype):
 		else:
 			name_headers = (
 				f"{table_df.fieldname}.name",  # fieldname
-				f"ID ({table_df.label})",  # label
+				f"ID ({table_ref})",  # label
 				"{} ({})".format(_("ID"), translated_table_label),  # translated label
 			)
 
@@ -1182,7 +1217,7 @@ def build_fields_dict_for_column_matching(parent_doctype):
 					# fieldname
 					f"{table_df.fieldname}.{df.fieldname}",
 					# label
-					f"{label} ({table_df.label})",
+					f"{label} ({table_ref})",
 					# translated label
 					f"{translated_label} ({translated_table_label})",
 				):

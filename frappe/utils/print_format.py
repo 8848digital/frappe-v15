@@ -1,9 +1,10 @@
-
 import http
 import json
 import os
 import uuid
 from io import BytesIO
+from typing import Literal
+from urllib.parse import urlparse
 
 from pypdf import PdfWriter
 
@@ -12,6 +13,7 @@ from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.translate import print_language
 from frappe.utils.deprecations import deprecated
+from frappe.utils.jinja import render_template
 from frappe.utils.pdf import get_pdf
 
 no_cache = 1
@@ -228,14 +230,28 @@ def read_multi_pdf(output: PdfWriter) -> bytes:
 
 @frappe.whitelist(allow_guest=True)
 def download_pdf(
-	doctype: str, name: str, format=None, doc=None, no_letterhead=0, language=None, letterhead=None
+	doctype: str,
+	name: str,
+	format=None,
+	doc=None,
+	no_letterhead=0,
+	language=None,
+	letterhead=None,
+	pdf_generator: Literal["wkhtmltopdf", "chrome"] | None = None,
 ):
 	doc = doc or frappe.get_doc(doctype, name)
 	validate_print_permission(doc)
 
 	with print_language(language):
 		pdf_file = frappe.get_print(
-			doctype, name, format, doc=doc, as_pdf=True, letterhead=letterhead, no_letterhead=no_letterhead
+			doctype,
+			name,
+			format,
+			doc=doc,
+			as_pdf=True,
+			letterhead=letterhead,
+			no_letterhead=no_letterhead,
+			pdf_generator=pdf_generator,
 		)
 
 	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
@@ -247,8 +263,57 @@ def download_pdf(
 def report_to_pdf(html, orientation="Landscape"):
 	make_access_log(file_type="PDF", method="PDF", page=html)
 	frappe.local.response.filename = "report.pdf"
-	frappe.local.response.filecontent = get_pdf(html, {"orientation": orientation})
+	frappe.local.response.filecontent = get_pdf(
+		html,
+		{
+			"orientation": orientation,
+			"proxy": "http://0.0.0.0:0",
+			"bypass-proxy-for": urlparse(frappe.utils.get_url(allow_header_override=False)).hostname,
+			"load-error-handling": "ignore",
+		},
+	)
 	frappe.local.response.type = "pdf"
+
+
+@frappe.whitelist()
+def render_letterhead_for_print(letterhead: str | None = None, doc: dict | str | None = None) -> dict:
+	"""Render letterhead HTML (header/footer) with Jinja for report printing."""
+
+	if not frappe.has_permission("Letter Head", "read"):
+		return {}
+
+	if isinstance(doc, str):
+		try:
+			doc = json.loads(doc)
+		except Exception:
+			doc = {}
+
+	letter_head = frappe._dict(
+		frappe.db.get_value(
+			"Letter Head",
+			letterhead or {"is_default": 1},
+			["content", "footer", "header_script", "footer_script"],
+			as_dict=True,
+		)
+		or {}
+	)
+
+	context_doc = frappe._dict(doc or {})
+	rendered = {}
+
+	if letter_head.content:
+		header = render_template(letter_head.content, {"doc": context_doc})
+		if letter_head.header_script:
+			header += f"\n<script>\n{letter_head.header_script}\n</script>\n"
+		rendered["header"] = header
+
+	if letter_head.footer:
+		footer = render_template(letter_head.footer, {"doc": context_doc})
+		if letter_head.footer_script:
+			footer += f"\n<script>\n{letter_head.footer_script}\n</script>\n"
+		rendered["footer"] = footer
+
+	return rendered
 
 
 @frappe.whitelist()

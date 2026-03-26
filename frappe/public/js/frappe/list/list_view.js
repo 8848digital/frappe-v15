@@ -26,10 +26,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		this.show();
 		const meta = frappe.get_meta(this.doctype);
 		this.is_large_table = meta?.is_large_table;
-
 		this.debounced_refresh = frappe.utils.debounce(
 			this.process_document_refreshes.bind(this),
-			this.is_large_table ? 15000 : 2000
+			2000
 		);
 		this.count_upper_bound = 1001;
 		this._element_factory = new ElementFactory(this.doctype);
@@ -108,27 +107,33 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return f;
 			});
 		}
-		this.add_recent_filter_on_large_tables();
 
 		if (this.view_name == "List") this.toggle_paging = true;
 
 		this.patch_refresh_and_load_lib();
-		return this.get_list_view_settings();
+		return this.get_list_view_settings().then(() => this.add_recent_filter_on_large_tables());
 	}
-
 	add_recent_filter_on_large_tables() {
-		if (!this.is_large_table) {
+		if (!this.is_large_table || this.list_view_settings?.disable_automatic_recency_filters) {
 			return;
 		}
 		// Note: versions older than v16 should use "modified" here.
 		const recency_field = "modified";
 
-		if (this.filters.filter((arr) => arr?.includes(recency_field)).length) {
+		if (this.filters.length) {
 			return;
 		}
 		this.filters.push([this.doctype, recency_field, "Timespan", "last 90 days"]);
+		frappe.show_alert(
+			{
+				message: __(
+					"Automatically applied a filter for recent data. You can disable this behavior from the list view settings."
+				),
+				indicator: "yellow",
+			},
+			3
+		);
 	}
-
 	on_sort_change(sort_by, sort_order) {
 		this.sort_by = sort_by;
 		this.sort_order = sort_order;
@@ -300,9 +305,18 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	make_new_doc() {
 		const doctype = this.doctype;
 		const options = {};
+		const allowed_filter_types = [
+			"=",
+			"descendants of (inclusive)",
+			"descendants of",
+			"ancestors of",
+		];
 		this.filter_area.get().forEach((f) => {
-			if (f[2] === "=" && frappe.model.is_non_std_field(f[1])) {
-				options[f[1]] = f[3];
+			if (allowed_filter_types.includes(f[2]) && frappe.model.is_non_std_field(f[1])) {
+				const df = frappe.meta.get_field(doctype, f[1]);
+				if (df && !df.read_only) {
+					options[f[1]] = f[3];
+				}
 			}
 		});
 		frappe.new_doc(doctype, options);
@@ -470,7 +484,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 	get_documentation_link() {
 		if (this.meta.documentation) {
-			return `<a href="${this.meta.documentation}" target="blank" class="meta-description small text-muted">Need Help?</a>`;
+			return `<a href="${
+				this.meta.documentation
+			}" target="blank" class="meta-description small text-muted">${__("Need Help?")}</a>`;
 		}
 		return "";
 	}
@@ -540,11 +556,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	before_refresh() {
 		if (frappe.route_options && this.filter_area) {
 			this.filters = this.parse_filters_from_route_options();
-			if (!this.filters.length || window.location.search) {
-				// Add recency filters if route options are not used
-				// Route options are internally used in connections to filter for specific documents.
-				this.add_recent_filter_on_large_tables();
-			}
 			frappe.route_options = null;
 
 			if (this.filters.length > 0) {
@@ -642,7 +653,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	render_count() {
-		if (this.list_view_settings.disable_count) return;
+		if (this.list_view_settings?.disable_count) {
+			return;
+		}
 
 		let me = this;
 		let $count = this.get_count_element();
@@ -842,7 +855,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 			if (df.fieldtype === "Image") {
 				html = df.options
-					? `<img src="${doc[df.options]}"
+					? `<img src="${frappe.utils.escape_html(doc[df.options])}"
 					style="max-height: 30px; max-width: 100%;">`
 					: `<div class="missing-image small">
 						${frappe.utils.icon("restriction")}
@@ -1096,11 +1109,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		];
 		const title = docstatus_description[doc.docstatus || 0];
 		if (indicator) {
-			return `<span class="indicator-pill ${
-				indicator[1]
-			} filterable no-indicator-dot ellipsis"
+			return `<span class="indicator-pill ${indicator[1]} filterable no-indicator-dot ellipsis"
 				data-filter='${indicator[2]}' title='${title}'>
-				<span class="ellipsis"> ${__(indicator[0])}</span>
+				<span class="ellipsis"> ${indicator[0]}</span>
 			</span>`;
 		}
 		return "";
@@ -1109,7 +1120,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	get_indicator_dot(doc) {
 		const indicator = frappe.get_indicator(doc, this.doctype);
 		if (!indicator) return "";
-		return `<span class='indicator ${indicator[1]}' title='${__(indicator[0])}'></span>`;
+		return `<span class='indicator ${indicator[1]}' title='${indicator[0]}'></span>`;
 	}
 
 	get_image_url(doc) {
@@ -1667,14 +1678,18 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 	get_search_params() {
 		let search_params = new URLSearchParams();
-
 		this.get_filters_for_args().forEach((filter) => {
-			if (filter[2] === "=") {
-				search_params.append(filter[1], filter[3]);
-			} else {
-				search_params.append(filter[1], JSON.stringify([filter[2], filter[3]]));
-			}
+			const doctype = filter[0];
+			const field = filter[1];
+			const operator = filter[2];
+			const value = filter[3];
+
+			const query_key = doctype === this.doctype ? field : `${doctype}.${field}`;
+			const query_value = operator === "=" ? value : JSON.stringify([operator, value]);
+
+			search_params.append(query_key, query_value);
 		});
+
 		return search_params;
 	}
 
@@ -1739,7 +1754,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		items.push({
 			label: __("Toggle Sidebar", null, "Button in list view menu"),
 			action: () => this.toggle_side_bar(),
-			condition: () => !this.hide_sidebar,
+			condition: () => !this.page.disable_sidebar_toggle,
 			standard: true,
 			shortcut: "Ctrl+K",
 		});
@@ -1825,8 +1840,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			})
 			.then((actions) => {
 				Object.keys(this.workflow_action_items).forEach((key) => {
-					this.workflow_action_items[key].removeClass("disabled");
-					this.workflow_action_items[key].toggle(actions.includes(key));
+					const $link = this.workflow_action_items[key];
+					const $item = $link?.closest("li");
+					$link?.removeClass("disabled");
+					$link?.toggle(actions.includes(key));
+					$item?.toggle(actions.includes(key));
 				});
 			});
 	}
@@ -2099,7 +2117,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		}
 
 		// bulk delete
-		if (frappe.model.can_delete(doctype) && !frappe.model.has_workflow(doctype)) {
+		if (frappe.model.can_delete(doctype) && is_bulk_edit_allowed(doctype)) {
 			actions_menu_items.push(bulk_delete());
 		}
 
@@ -2109,9 +2127,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	parse_filters_from_route_options() {
 		const filters = [];
 
-		for (let field in frappe.route_options) {
+		let params = new URLSearchParams(window.location.search);
+		if (!params.toString() && frappe.route_options) {
+			params = new Map(Object.entries(frappe.route_options));
+		}
+
+		params.forEach((value, field) => {
 			let doctype = null;
-			let value = frappe.route_options[field];
 
 			let value_array;
 			if ($.isArray(value) && value[0].startsWith("[") && value[0].endsWith("]")) {
@@ -2153,8 +2175,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					filters.push([doctype, field, "=", value]);
 				}
 			}
-		}
-
+		});
 		return filters;
 	}
 };

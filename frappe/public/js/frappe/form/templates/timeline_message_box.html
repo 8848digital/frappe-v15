@@ -31,10 +31,16 @@
 					{{ frappe.avatar(doc.owner, "avatar-medium") }}
 					<span class="ml-2" style="font-size: var(--text-base);">{{ doc.user_full_name || frappe.user.full_name(doc.owner) }}</span>
 					<span class="text-muted">{{ __("commented") }}</span>
-					<span> . </span>
-					<span class="margin-left text-muted">
+					<span> · </span>
+					<span class="text-muted">
 						{{ comment_when(doc.communication_date || doc.creation) }}
 					</span>
+					{% if (doc.published) { %}
+						<span> · </span>
+						<span class="text-muted" title="{{ __('Visible to website/portal users.') }}">
+							{{ __("Published") }}
+						</span>
+					{% } %}
 				</span>
 			{% } else { %}
 				<span class="margin-right">
@@ -42,7 +48,7 @@
 				</span>
 				<div>
 					{{ doc.user_full_name || frappe.user.full_name(doc.owner) }}
-					<span> . </span>
+					<span> · </span>
 					<span class="text-muted">
 						{{ comment_when(doc.communication_date || doc.creation) }}
 					</span>
@@ -65,7 +71,7 @@
 
 			{% if (doc._url) { %}
 			<a class="action-btn" href="{{ doc._url }}" title="{{ __("Open Communication") }}">
-				<svg class="es-icon icon-sm">
+				<svg class="icon">
 					<use href="#es-line-link"></use>
 				</svg>
 			</a>

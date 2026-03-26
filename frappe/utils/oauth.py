@@ -16,8 +16,7 @@ if TYPE_CHECKING:
 	from frappe.core.doctype.user.user import User
 
 
-class SignupDisabledError(frappe.PermissionError):
-	...
+class SignupDisabledError(frappe.PermissionError): ...
 
 
 def get_oauth2_providers() -> dict[str, dict]:
@@ -160,7 +159,7 @@ def get_info_via_oauth(provider: str, code: str, decoder: Callable | None = None
 			email_dict = next(filter(lambda x: x.get("primary"), emails))
 			info["email"] = email_dict.get("email")
 
-	if not (info.get("email_verified") or info.get("email")):
+	if not (info.get("email_verified") or get_email(info)):
 		frappe.throw(_("Email not verified with {0}").format(provider.title()))
 
 	return info
@@ -185,7 +184,9 @@ def login_oauth_user(
 		frappe.respond_as_web_page(_("Invalid Request"), _("Token is missing"), http_status_code=417)
 		return
 
-	user = get_email(data)
+	# All user emails are stored as lowercase, but OAuth provider could have it in mixed case.
+	# We pass the email as-is to LoginManager, which could result in a session with an incorrect email.
+	user = get_email(data).lower()
 
 	if not user:
 		frappe.respond_as_web_page(
@@ -205,8 +206,7 @@ def login_oauth_user(
 			http_status_code=403,
 		)
 
-	frappe.local.login_manager.user = user
-	frappe.local.login_manager.post_login()
+	frappe.local.login_manager.login_as(user)
 
 	# because of a GET request!
 	frappe.db.commit()
@@ -235,7 +235,7 @@ def get_user_record(user: str, data: dict, provider: str) -> "User":
 		if not provider_allows_signup(provider):
 			raise SignupDisabledError
 
-	user: "User" = frappe.new_doc("User")
+	user: User = frappe.new_doc("User")
 
 	if gender := data.get("gender", "").title():
 		frappe.get_doc({"doctype": "Gender", "gender": gender}).insert(
@@ -264,7 +264,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 	if isinstance(data.get("location"), dict):
 		data["location"] = data["location"].get("name")
 
-	user: "User" = get_user_record(user, data, provider)
+	user: User = get_user_record(user, data, provider)
 	update_user_record = user.is_new()
 
 	if not user.enabled:
@@ -302,7 +302,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 
 
 def get_first_name(data: dict) -> str:
-	return data.get("first_name") or data.get("given_name") or data.get("name")
+	return data.get("first_name") or data.get("given_name") or data.get("name") or data.get("login")
 
 
 def get_last_name(data: dict) -> str:

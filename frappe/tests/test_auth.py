@@ -6,14 +6,11 @@ import time
 import requests
 
 import frappe
-from werkzeug.test import EnvironBuilder
-from werkzeug.wrappers import Request
 from frappe.auth import LoginAttemptTracker
 from frappe.frappeclient import AuthError, FrappeClient
 from frappe.sessions import Session, get_expired_sessions, get_expiry_in_seconds
 from frappe.tests.test_api import FrappeAPITestCase
 from frappe.tests.utils import FrappeTestCase
-from frappe.tests import IntegrationTestCase, UnitTestCase
 from frappe.utils import get_datetime, get_site_url, now
 from frappe.utils.data import add_to_date
 from frappe.www.login import _generate_temporary_login_link
@@ -29,34 +26,6 @@ def add_user(email, password, username=None, mobile_no=None):
 	user.add_roles("System Manager")
 	frappe.db.commit()
 
-
-class TestAllowedReferrer(UnitTestCase):
-	def test_is_allowed_referrer(self):
-		def create_request(headers):
-			builder = EnvironBuilder(headers=headers)
-			env = builder.get_environ()
-			return Request(env)
-		# Test with valid referrer
-		frappe.cache.set_value("allowed_referrers", ["https://example.com"])
-		frappe.local.request = create_request({"Referer": "https://example.com/some/path"})
-		http_request = frappe.auth.HTTPRequest()
-		self.assertTrue(http_request.is_allowed_referrer())
-		# Test with invalid referrer
-		frappe.local.request = create_request({"Referer": "https://malicious.com"})
-		http_request = frappe.auth.HTTPRequest()
-		self.assertFalse(http_request.is_allowed_referrer())
-		# Test with valid origin
-		frappe.local.request = create_request({"Origin": "https://example.com"})
-		http_request = frappe.auth.HTTPRequest()
-		self.assertTrue(http_request.is_allowed_referrer())
-		# Test with invalid origin
-		frappe.local.request = create_request({"Origin": "https://malicious.com"})
-		http_request = frappe.auth.HTTPRequest()
-		self.assertFalse(http_request.is_allowed_referrer())
-		# Clean up
-		frappe.cache.delete_value("allowed_referrers")
-		frappe.local.request = None
-		
 
 class TestAuth(FrappeTestCase):
 	@classmethod
@@ -78,10 +47,12 @@ class TestAuth(FrappeTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
+		frappe.db.rollback()
 		frappe.delete_doc("User", cls.test_user_email, force=True)
 		frappe.local.request_ip = None
 		frappe.form_dict.email = None
 		frappe.local.response["http_status_code"] = None
+		frappe.db.commit()
 
 	def set_system_settings(self, k, v):
 		frappe.db.set_single_value("System Settings", k, v)
@@ -237,7 +208,7 @@ class TestLoginAttemptTracker(FrappeTestCase):
 		self.assertTrue(tracker.is_user_allowed())
 
 
-class TestSessionExpirty(FrappeAPITestCase):
+class TestSessionExpiry(FrappeAPITestCase):
 	def test_session_expires(self):
 		sid = self.sid  # triggers login for test case login
 		s: Session = frappe.local.session_obj

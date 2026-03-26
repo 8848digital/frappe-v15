@@ -16,10 +16,10 @@ jobs:
           path: 'frappe'
       - uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 22
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.14'
       - name: Set up bench and build assets
         run: |
           npm install -g yarn

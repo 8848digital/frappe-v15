@@ -59,6 +59,7 @@ class EmailAccount(Document):
 		from frappe.types import DF
 
 		add_signature: DF.Check
+		always_bcc: DF.Data | None
 		always_use_account_email_id_as_sender: DF.Check
 		always_use_account_name_as_sender_name: DF.Check
 		append_emails_to_sent_folder: DF.Check
@@ -153,6 +154,7 @@ class EmailAccount(Document):
 		if not frappe.local.flags.in_install and not self.awaiting_password:
 			if validate_oauth or self.password or self.smtp_server in ("127.0.0.1", "localhost"):
 				if self.enable_incoming:
+					self.flags.validate_imap_pop_connection = True
 					self.get_incoming_server()
 					self.no_failed = 0
 
@@ -180,8 +182,9 @@ class EmailAccount(Document):
 		if not self.smtp_server:
 			frappe.throw(_("SMTP Server is required"))
 
-		server = self.get_smtp_server()
-		return server.session
+		self.flags.validate_smtp_connection = True
+		self.get_smtp_server().session
+		del self._smtp_server_instance
 
 	def before_save(self):
 		messages = []
@@ -267,6 +270,9 @@ class EmailAccount(Document):
 
 		if not args.get("host"):
 			frappe.throw(_("{0} is required").format("Email Server"))
+
+		if self.flags.validate_imap_pop_connection:
+			args.timeout = 15
 
 		email_server = EmailServer(frappe._dict(args))
 		self.check_email_server_connection(email_server, in_receive)
@@ -396,7 +402,7 @@ class EmailAccount(Document):
 
 		if _raise_error:
 			frappe.throw(
-				_("Please setup default Email Account from Settings > Email Account"),
+				_("Please setup default outgoing Email Account from Tools > Email Account"),
 				frappe.OutgoingEmailError,
 			)
 
@@ -471,7 +477,7 @@ class EmailAccount(Document):
 	def sendmail_config(self):
 		oauth_token = self.get_oauth_token()
 
-		return {
+		config = {
 			"email_account": self.name,
 			"server": self.smtp_server,
 			"port": cint(self.smtp_port),
@@ -482,6 +488,11 @@ class EmailAccount(Document):
 			"use_oauth": self.auth_method == "OAuth",
 			"access_token": oauth_token.get_password("access_token") if oauth_token else None,
 		}
+
+		if self.flags.validate_smtp_connection:
+			config["timeout"] = 15
+
+		return config
 
 	def get_smtp_server(self):
 		"""Get SMTPServer (wrapper around actual smtplib object) for this account.
@@ -824,6 +835,7 @@ def pull(now=False):
 		.select(
 			doctype.name,
 			doctype.auth_method,
+			doctype.backend_app_flow,
 			doctype.connected_app,
 			doctype.connected_user,
 		)
@@ -857,6 +869,20 @@ def pull(now=False):
 					job_name=job_name,
 					email_account=email_account.name,
 				)
+
+
+@frappe.whitelist()
+def pull_emails(email_account: str) -> None:
+	"""Pull emails from given email account."""
+	frappe.has_permission("Email Account", "read", throw=True)
+
+	job_name = f"pull_from_email_account|{email_account}"
+	queued_jobs = get_jobs(site=frappe.local.site, key="job_name")[frappe.local.site]
+
+	if job_name not in queued_jobs:
+		pull_from_email_account(email_account)
+	else:
+		frappe.msgprint(_("Emails are already being pulled from this account."))
 
 
 def pull_from_email_account(email_account):

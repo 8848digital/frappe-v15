@@ -190,8 +190,6 @@ class UserPermissions:
 				filters={"property": "allow_import", "value": "1"},
 			)
 
-		frappe.cache.hset("can_import", frappe.session.user, self.can_import)
-
 	def get_defaults(self):
 		import frappe.defaults
 
@@ -223,6 +221,7 @@ class UserPermissions:
 				"language",
 				"last_name",
 				"mute_sounds",
+				"show_absolute_datetime_format",
 				"send_me_a_copy",
 				"user_type",
 				"onboarding_status",

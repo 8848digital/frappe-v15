@@ -19,7 +19,6 @@ from frappe.utils import (
 	split_emails,
 	validate_email_address,
 )
-
 if TYPE_CHECKING:
 	from frappe.core.doctype.communication.communication import Communication
 
@@ -49,6 +48,7 @@ def make(
 	send_after=None,
 	print_language=None,
 	now=False,
+	in_reply_to=None,
 	**kwargs,
 ) -> dict[str, str]:
 	"""Make a new communication. Checks for email permissions for specified Document.
@@ -68,6 +68,7 @@ def make(
 	:param send_me_a_copy: Send a copy to the sender (default **False**).
 	:param email_template: Template which is used to compose mail .
 	:param send_after: Send after the given datetime.
+	:param in_reply_to: Name of the Communication document to which this communication is a reply.
 	"""
 	if kwargs:
 		from frappe.utils.commands import warn
@@ -78,8 +79,8 @@ def make(
 			category=DeprecationWarning,
 		)
 
-	if doctype and name and not frappe.has_permission(doctype=doctype, ptype="email", doc=name):
-		raise frappe.PermissionError(f"You are not allowed to send emails related to: {doctype} {name}")
+	if doctype and name:
+		frappe.has_permission(doctype, doc=name, ptype="email", throw=True)
 
 	return _make(
 		doctype=doctype,
@@ -106,6 +107,7 @@ def make(
 		send_after=send_after,
 		print_language=print_language,
 		now=now,
+		in_reply_to=in_reply_to,
 	)
 
 
@@ -134,6 +136,7 @@ def _make(
 	send_after=None,
 	print_language=None,
 	now=False,
+	in_reply_to=None,
 ) -> dict[str, str]:
 	"""Internal method to make a new communication that ignores Permission checks."""
 
@@ -142,7 +145,7 @@ def _make(
 	cc = list_to_str(cc) if isinstance(cc, list) else cc
 	bcc = list_to_str(bcc) if isinstance(bcc, list) else bcc
 
-	comm: "Communication" = frappe.get_doc(
+	comm: Communication = frappe.get_doc(
 		{
 			"doctype": "Communication",
 			"subject": subject,
@@ -162,10 +165,90 @@ def _make(
 			"has_attachment": 1 if attachments else 0,
 			"communication_type": communication_type,
 			"send_after": send_after,
+			"in_reply_to": in_reply_to,
 		}
 	)
 	comm.flags.skip_add_signature = not add_signature
 	comm.insert(ignore_permissions=True)
+	global_enabled = frappe.db.get_single_value(
+		"System Settings", "global_enable"
+	)
+
+	if email_template and global_enabled == 1:
+
+		template_doc = frappe.get_doc("Email Template", email_template)
+
+		# Check if template allows value update
+		if template_doc.enable_value_update != 1:
+			return
+
+		# ---------------------------------------
+		# 1️⃣ Get update rows for current Doctype
+		# ---------------------------------------
+		update_rows = [
+			row for row in template_doc.status_update
+			if row.doctype_name == doctype
+		]
+
+		if not update_rows:
+			return
+
+		# ---------------------------------------
+		# 2️⃣ Build Excluded Fields ONLY for current Doctype
+		# ---------------------------------------
+		excluded_fields = set()
+
+		for ex_row in template_doc.exclude_valuess:
+			if ex_row.doctype_name != doctype:
+				continue
+
+			if ex_row.exclude_values:
+				fields = [
+					f.strip()
+					for f in ex_row.exclude_values.split(",")
+					if f.strip()
+				]
+				excluded_fields.update(fields)
+
+		# ---------------------------------------
+		# 3️⃣ Get record ONLY ONCE
+		# ---------------------------------------
+		record = frappe.get_doc(doctype, name)
+
+		updated = False
+
+		# ---------------------------------------
+		# 4️⃣ Apply updates (skip excluded fields)
+		# ---------------------------------------
+		for row in update_rows:
+
+			update_field = row.update_doc_field
+			update_value = row.update_doc_data
+
+			if not update_field:
+				continue
+
+			# Skip excluded fields
+			if update_field in excluded_fields:
+				continue
+
+			# Check if field exists in document
+			if hasattr(record, update_field):
+
+				current_value = getattr(record, update_field)
+
+				# Update only if value is different
+				if current_value != update_value:
+					setattr(record, update_field, update_value)
+					updated = True
+
+		# ---------------------------------------
+		# 5️⃣ Save only if something changed
+		# ---------------------------------------
+		if updated:
+			record.save(ignore_permissions=True)
+
+
 
 	# if not committed, delayed task doesn't find the communication
 	if attachments:
@@ -194,6 +277,8 @@ def _make(
 	emails_not_sent_to = comm.exclude_emails_list(include_sender=send_me_a_copy)
 
 	return {"name": comm.name, "emails_not_sent_to": ", ".join(emails_not_sent_to)}
+
+
 
 
 def validate_email(doc: "Communication") -> None:

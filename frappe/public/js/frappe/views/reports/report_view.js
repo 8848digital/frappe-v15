@@ -20,6 +20,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.page_title = __("Report:") + " " + this.page_title;
 		this.view = "Report";
 
+		this.link_title_doctype_fields = [];
+
 		const route = frappe.get_route();
 		if (route.length === 4) {
 			this.report_name = route[3];
@@ -30,7 +32,13 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				this.report_doc = doc;
 				this.report_doc.json = JSON.parse(this.report_doc.json);
 
-				this.filters = this.report_doc.json.filters;
+				this.filters = [
+					...(Array.isArray(this.report_doc.json.filters)
+						? this.report_doc.json.filters
+						: []),
+					...this.parse_filters_from_route_options(),
+				];
+
 				this.order_by = this.report_doc.json.order_by;
 				this.add_totals_row = this.report_doc.json.add_totals_row;
 				this.page_title = __(this.report_name);
@@ -53,11 +61,15 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	setup_events() {
+		const me = this;
 		if (this.list_view_settings?.disable_auto_refresh) {
 			return;
 		}
 		frappe.realtime.doctype_subscribe(this.doctype);
 		frappe.realtime.on("list_update", (data) => this.on_update(data));
+		this.page.actions_btn_group.on("show.bs.dropdown", () => {
+			me.toggle_workflow_actions();
+		});
 	}
 
 	setup_page() {
@@ -145,6 +157,25 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		if (!this.group_by) {
 			this.init_chart();
 		}
+
+		this.set_link_title_field_value();
+	}
+
+	set_link_title_field_value() {
+		Object.keys(this.link_title_doctype_fields).forEach(async (key) => {
+			let link_title = await this.get_link_title_field_value(
+				this.link_title_doctype_fields[key],
+				key
+			);
+			document.querySelector(`a[data-name="${key}"]`).innerHTML = link_title;
+		});
+	}
+
+	async get_link_title_field_value(doctype, value) {
+		return (
+			frappe.utils.get_link_title(doctype, value) ||
+			(await frappe.utils.fetch_link_title(doctype, value))
+		);
 	}
 
 	set_dirty_state_for_custom_report() {
@@ -294,6 +325,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	setup_datatable(values) {
+		this.link_title_doctype_fields = [];
 		this.$datatable_wrapper.empty();
 		this.datatable = new DataTable(this.$datatable_wrapper[0], {
 			columns: this.columns,
@@ -679,9 +711,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		} else if (expression.substr(0, 5) == "eval:") {
 			try {
 				out = frappe.utils.eval(expression.substr(5), { doc: data });
-				if (parent && parent.istable && expression.includes("is_submittable")) {
-					out = true;
-				}
 			} catch (e) {
 				frappe.throw(__('Invalid "depends_on" expression'));
 			}
@@ -992,7 +1021,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			columns: 2,
 			options: columns[this.doctype]
 				.filter((df) => {
-					return !df.hidden && df.fieldname !== "name";
+					return !df.hidden && df.fieldname !== "name" && !df.is_virtual;
 				})
 				.map((df) => ({
 					label: __(df.label, null, df.parent),
@@ -1134,7 +1163,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			id = `${doctype}:${fieldname}`;
 		}
 
-		let width = (docfield ? cint(docfield.width) : null) || null;
+		let width = (docfield ? cint(docfield.width) : null) || null; // Assuming cint is defined elsewhere
 		if (this.report_doc) {
 			// load the user saved column width
 			let saved_column_widths = this.report_doc.json.column_widths || {};
@@ -1168,6 +1197,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (Array.isArray(row)) {
 					doc = row.reduce((acc, curr) => {
 						if (!curr.column.docfield) return acc;
+						if (
+							curr.column.docfield.fieldtype == "Link" &&
+							frappe.boot.link_title_doctypes.includes(
+								curr.column.docfield.options
+							) &&
+							curr.html
+						) {
+							this.link_title_doctype_fields[curr.content] =
+								curr.column.docfield.options;
+						}
 						acc[curr.column.docfield.fieldname] = curr.content;
 						return acc;
 					}, {});
@@ -1494,6 +1533,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			},
 			{
 				label: __("Print"),
+				condition: () => frappe.model.can_print(this.doctype),
 				action: () => {
 					// prepare rows in their current state, sorted and filtered
 					const rows_in_order = this.datatable.datamanager.rowViewOrder
@@ -1646,8 +1686,15 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 								delete args.start;
 								delete args.page_length;
 							}
-
-							open_url_post(frappe.request.url, args);
+							args.export_in_background = data.export_in_background;
+							if (data.export_in_background) {
+								frappe.call({
+									method: args.cmd,
+									args,
+								});
+							} else {
+								open_url_post(frappe.request.url, args);
+							}
 
 							d.hide();
 						}

@@ -22,12 +22,22 @@ export default class ShortcutWidget extends Widget {
 			type: this.type,
 			url: this.url,
 			kanban_board: this.kanban_board,
+			report_ref_doctype: this.report_ref_doctype,
 		};
 	}
 
 	setup_events() {
 		this.widget.click((e) => {
 			if (this.in_customize_mode) return;
+
+			if (this.type == "DocType" && this.doc_view == "New") {
+				frappe.ui.form.make_quick_entry(
+					this.link_to,
+					// Callback to ensure no redirection after insert
+					() => {}
+				);
+				return;
+			}
 
 			let route = frappe.utils.generate_route({
 				route: this.route,
@@ -64,11 +74,11 @@ export default class ShortcutWidget extends Widget {
 
 	set_actions() {
 		if (this.in_customize_mode) return;
-
-		$(frappe.utils.icon("es-line-arrow-up-right", "xs", "", "", "ml-2")).appendTo(
-			this.action_area
-		);
-
+		let icon_to_append = frappe.utils.icon("es-line-arrow-up-right", "xs", "", "", "ml-2");
+		if (frappe.utils.is_rtl(frappe.boot.lang)) {
+			icon_to_append = frappe.utils.icon("es-line-arrow-up-left", "xs", "", "", "ml-2");
+		}
+		$(icon_to_append).appendTo(this.action_area);
 		this.widget.addClass("shortcut-widget-box");
 
 		// Make it tabbable
@@ -80,10 +90,14 @@ export default class ShortcutWidget extends Widget {
 
 		let filters = frappe.utils.process_filter_expression(this.stats_filter);
 
-		if (this.type == "DocType" && this.doc_view != "New" && filters) {
+		if (
+			this.type == "DocType" &&
+			this.doc_view != "New" &&
+			!frappe.boot.single_types.includes(this.link_to)
+		) {
 			frappe.db
 				.count(this.link_to, {
-					filters: filters,
+					filters: filters || [],
 				})
 				.then((count) => this.set_count(count));
 		}

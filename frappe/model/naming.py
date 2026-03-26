@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 import frappe
 from frappe import _
 from frappe.model import log_types
+from frappe.monitor import get_trace_id
 from frappe.query_builder import DocType
 from frappe.utils import cint, cstr, now_datetime
 
@@ -60,6 +61,14 @@ class NamingSeries:
 			frappe.throw(
 				_(
 					"Special Characters except '-', '#', '.', '/', '{{' and '}}' not allowed in naming series {0}"
+				).format(frappe.bold(self.series)),
+				exc=InvalidNamingSeriesError,
+			)
+
+		if "#" in self.series and ".#" not in self.series:
+			frappe.throw(
+				_(
+					"Invalid naming series {}: dot (.) missing before the numeric placeholders. Kindly use a format like <b>ABCD.#####</b>."
 				).format(frappe.bold(self.series)),
 				exc=InvalidNamingSeriesError,
 			)
@@ -122,7 +131,7 @@ class NamingSeries:
 
 	def get_current_value(self) -> int:
 		prefix = self.get_prefix()
-		return cint(frappe.db.get_value("Series", prefix, "current", order_by="name"))
+		return cint(frappe.db.get_value("Series", prefix, "current", order_by="name", for_update=True))
 
 
 def set_new_name(doc):
@@ -265,7 +274,7 @@ def make_autoname(key="", doctype="", doc="", *, ignore_validate=False):
 	                DE/09/01/00001 where 09 is the year, 01 is the month and 00001 is the series
 	"""
 	if key == "hash":
-		return _generate_random_string(10)
+		return (_get_timestamp_prefix() + _generate_random_string(7))[:10]
 
 	series = NamingSeries(key)
 	return series.generate_next_name(doc, ignore_validate=ignore_validate)
@@ -275,7 +284,14 @@ def _get_timestamp_prefix():
 	ts = int(time.time() * 10)  # time in deciseconds
 	# we ~~don't need~~ can't get ordering over entire lifetime, so we wrap the time.
 	ts = ts % (32**4)
-	return base64.b32hexencode(ts.to_bytes(length=5, byteorder="big")).decode()[-4:].lower()
+	ts_part = base64.b32hexencode(ts.to_bytes(length=5, byteorder="big")).decode()[-3:].lower()
+
+	# First character is from request/job specific UUID, all documents created in this "session" will
+	# have same prefix. This avoids collision between parallel jobs with reasonable probabililistic
+	# guarantees.
+	request_part = (get_trace_id() or "")[-1:]
+
+	return request_part + ts_part
 
 
 def _generate_random_string(length=10):
@@ -327,11 +343,11 @@ def parse_naming_series(
 		if e.startswith("#"):
 			if not series_set:
 				digits = len(e)
-				part = number_generator(name, digits)
 				if key:
 					part = number_generator(key, digits)
 				else:
 					part = number_generator(name, digits)
+
 				series_set = True
 		elif e == "YY":
 			part = today.strftime("%y")
@@ -518,9 +534,7 @@ def _set_amended_name(doc):
 		"Amended Document Naming Settings", {"document_type": doc.doctype}, "action", cache=True
 	)
 	if not amend_naming_rule:
-		amend_naming_rule = frappe.db.get_single_value(
-			"Document Naming Settings", "default_amend_naming", cache=True
-		)
+		amend_naming_rule = frappe.get_single_value("Document Naming Settings", "default_amend_naming")
 
 	if amend_naming_rule == "Default Naming":
 		return
@@ -575,9 +589,7 @@ def _format_autoname(autoname: str, doc):
 			key = patterned_string[: patterned_string.find(param)]
 
 			return parse_naming_series([param[1:-1]], doc=doc, key=key)
-
 		return get_param_value
-
 	# Replace braced params with their parsed value
 	autoname_value = BRACED_PARAMS_WORD_PATTERN.sub(get_param_value_for_word_match, autoname_value)
 	return BRACED_PARAMS_HASH_PATTERN.sub(get_param_value_for_hash_match(autoname_value), autoname_value)

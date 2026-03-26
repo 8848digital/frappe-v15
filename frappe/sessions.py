@@ -6,8 +6,8 @@ Boot session from cache or build
 Session bootstraps info needed by common client side activities including
 permission, homepage, default variables, system defaults etc
 """
+
 import json
-from datetime import datetime, timezone
 from urllib.parse import unquote
 
 import redis
@@ -169,7 +169,7 @@ def get():
 	bootinfo["lang"] = frappe.translate.get_user_lang()
 	bootinfo["disable_async"] = frappe.conf.disable_async
 
-	bootinfo["setup_complete"] = cint(frappe.get_system_settings("setup_complete"))
+	bootinfo["setup_complete"] = frappe.is_setup_complete()
 	apps = get_apps() or []
 	bootinfo["apps_data"] = {
 		"apps": apps,
@@ -204,17 +204,9 @@ def generate_csrf_token():
 
 
 class Session:
-	__slots__ = ("user", "user_type", "full_name", "data", "time_diff", "sid", "_update_in_cache")
+	__slots__ = ("_update_in_cache", "data", "full_name", "sid", "time_diff", "user", "user_type")
 
-	def __init__(
-		self,
-		user: str,
-		resume: bool = False,
-		full_name: str | None = None,
-		user_type: str | None = None,
-		session_end: str | None = None,
-		audit_user: str | None = None,
-	):
+	def __init__(self, user, resume=False, full_name=None, user_type=None):
 		self.sid = cstr(frappe.form_dict.get("sid") or unquote(frappe.request.cookies.get("sid", "Guest")))
 		self.user = user
 		self.user_type = user_type
@@ -232,7 +224,7 @@ class Session:
 		else:
 			if self.user:
 				self.validate_user()
-				self.start(session_end, audit_user)
+				self.start()
 
 	def validate_user(self):
 		if not frappe.get_cached_value("User", self.user, "enabled"):
@@ -241,7 +233,7 @@ class Session:
 				frappe.ValidationError,
 			)
 
-	def start(self, session_end: str | None = None, audit_user: str | None = None):
+	def start(self):
 		"""start a new session"""
 		# generate sid
 		if self.user == "Guest":
@@ -253,13 +245,6 @@ class Session:
 		self.sid = self.data.sid = sid
 		self.data.data.user = self.user
 		self.data.data.session_ip = frappe.local.request_ip
-		
-		if session_end:
-			self.data.data.session_end = session_end
-   
-		if audit_user:
-			self.data.data.audit_user = audit_user
-   
 		if self.user != "Guest":
 			self.data.data.update(
 				{
@@ -355,10 +340,7 @@ class Session:
 			)
 			expiry = get_expiry_in_seconds(session_data.get("session_expiry"))
 
-			if self.time_diff > expiry or (
-				(session_end := session_data.get("session_end"))
-				and datetime.now(tz=timezone.utc) > datetime.fromisoformat(session_end)
-			):
+			if self.time_diff > expiry:
 				self._delete_session()
 				data = None
 
@@ -375,7 +357,7 @@ class Session:
 		).run()
 
 		if record:
-			data = frappe._dict(frappe.safe_eval(record and record[0][1] or "{}"))
+			data = frappe._dict(frappe.safe_eval((record and record[0][1]) or "{}"))
 			data.user = record[0][0]
 		else:
 			self._delete_session()
@@ -405,9 +387,11 @@ class Session:
 		last_updated = frappe.cache.hget("last_db_session_update", self.sid)
 		time_diff = frappe.utils.time_diff_in_seconds(now, last_updated) if last_updated else None
 
+		threshold = min(get_expiry_in_seconds() / 2, 600) or 600
+
 		# database persistence is secondary, don't update it too often
 		updated_in_db = False
-		if (force or (time_diff is None) or (time_diff > 600)) and not frappe.flags.read_only:
+		if (force or (time_diff is None) or (time_diff > threshold)) and not frappe.flags.read_only:
 			self.data.data.last_updated = now
 			self.data.data.lang = str(frappe.lang)
 			# update sessions table
@@ -428,7 +412,7 @@ class Session:
 
 		return updated_in_db
 
-	def set_impersonated(self, original_user):
+	def set_impersonsated(self, original_user):
 		self.data.data.impersonated_by = original_user
 		# Forcefully flush session
 		self.update(force=True)

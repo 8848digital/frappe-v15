@@ -9,13 +9,14 @@ import frappe
 from frappe import _
 from frappe.core.doctype.data_import.exporter import Exporter
 from frappe.core.doctype.data_import.importer import Importer
-from frappe.model import core_doctypes_list
+from frappe.model import CORE_DOCTYPES
 from frappe.model.document import Document
 from frappe.modules.import_file import import_file_by_path
+from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue, is_job_enqueued
 from frappe.utils.csvutils import validate_google_sheets_url
 
-BLOCKED_DOCTYPES = set(core_doctypes_list) - {"User", "Role"}
+BLOCKED_DOCTYPES = CORE_DOCTYPES - {"User", "Role", "Print Format"}
 
 
 class DataImport(Document):
@@ -58,6 +59,20 @@ class DataImport(Document):
 	def validate_doctype(self):
 		if self.reference_doctype in BLOCKED_DOCTYPES:
 			frappe.throw(_("Importing {0} is not allowed.").format(self.reference_doctype))
+
+		meta = frappe.get_meta(self.reference_doctype)
+		if not cint(meta.allow_import):
+			frappe.throw(
+				_("Data Import is not allowed for {0}. Enable 'Allow Import' in DocType settings.").format(
+					self.reference_doctype
+				)
+			)
+
+		if not frappe.has_permission(self.reference_doctype, "import"):
+			frappe.throw(
+				_("You do not have import permission for {0}").format(self.reference_doctype),
+				frappe.PermissionError,
+			)
 
 	def validate_import_file(self):
 		if self.import_file:
@@ -121,10 +136,7 @@ class DataImport(Document):
 	def get_importer(self):
 		return Importer(self.reference_doctype, data_import=self)
 
-def on_trash(self):
-		frappe.db.delete("Data Import Log", {"data_import": self.name})
-  
-  
+
 @frappe.whitelist()
 def get_preview_from_template(data_import, import_file=None, google_sheets_url=None):
 	return frappe.get_doc("Data Import", data_import).get_preview_from_template(

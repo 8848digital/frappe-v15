@@ -9,10 +9,9 @@ import frappe.model
 import frappe.utils
 from frappe import _
 from frappe.desk.reportview import validate_args
-from frappe.desk.search import search_link
 from frappe.model.db_query import check_parent_permission
 from frappe.model.utils import is_virtual_doctype
-from frappe.utils import get_safe_filters
+from frappe.utils import attach_expanded_links, get_safe_filters
 from frappe.utils.deprecations import deprecated
 
 if TYPE_CHECKING:
@@ -38,6 +37,7 @@ def get_list(
 	debug: bool = False,
 	as_dict: bool = True,
 	or_filters=None,
+	expand=None,
 ):
 	"""Returns a list of records by filters, fields, ordering and limit
 
@@ -65,12 +65,28 @@ def get_list(
 	)
 
 	validate_args(args)
-	return frappe.get_list(**args)
+	_list = frappe.get_list(**args)
+
+	if not expand:
+		return _list
+
+	if fields and not fields[0] == "*":
+		expand = [f for f in expand if f in fields]
+
+	attach_expanded_links(doctype, _list, expand)
+
+	return _list
 
 
 @frappe.whitelist()
 def get_count(doctype, filters=None, debug=False, cache=False):
-	return frappe.db.count(doctype, get_safe_filters(filters), debug, cache)
+	from frappe.desk.reportview import get_count
+
+	frappe.form_dict.doctype = doctype
+	frappe.form_dict.filters = get_safe_filters(filters)
+	frappe.form_dict.debug = debug
+
+	return get_count()
 
 
 @frappe.whitelist()
@@ -296,8 +312,8 @@ def bulk_update(docs):
 
 
 @frappe.whitelist()
-def has_permission(doctype, docname, perm_type="read"):
-	"""Returns a JSON with data whether the document has the requested permission
+def has_permission(doctype: str, docname: str, perm_type: str = "read"):
+	"""Return a JSON with data whether the document has the requested permission.
 
 	:param doctype: DocType of the document to be checked
 	:param docname: `name` of the document to be checked
@@ -307,8 +323,8 @@ def has_permission(doctype, docname, perm_type="read"):
 
 
 @frappe.whitelist()
-def get_doc_permissions(doctype, docname):
-	"""Returns an evaluated document permissions dict like `{"read":1, "write":1}`
+def get_doc_permissions(doctype: str, docname: str):
+	"""Return an evaluated document permissions dict like `{"read":1, "write":1}`.
 
 	:param doctype: DocType of the document to be evaluated
 	:param docname: `name` of the document to be evaluated
@@ -318,7 +334,7 @@ def get_doc_permissions(doctype, docname):
 
 
 @frappe.whitelist()
-def get_password(doctype, name, fieldname):
+def get_password(doctype: str, name: str, fieldname: str):
 	"""Return a password type property. Only applicable for System Managers
 
 	:param doctype: DocType of the document that holds the password
@@ -406,7 +422,7 @@ def attach_file(
 
 
 @frappe.whitelist()
-def is_document_amended(doctype, docname):
+def is_document_amended(doctype: str, docname: str):
 	if frappe.permissions.has_permission(doctype):
 		try:
 			return frappe.db.exists(doctype, {"amended_from": docname})
@@ -417,7 +433,7 @@ def is_document_amended(doctype, docname):
 
 
 @frappe.whitelist()
-def validate_link(doctype: str, docname: str, fields=None, args=None):
+def validate_link(doctype: str, docname: str, fields=None):
 	if not isinstance(doctype, str):
 		frappe.throw(_("DocType must be a string"))
 
@@ -438,24 +454,7 @@ def validate_link(doctype: str, docname: str, fields=None, args=None):
 			)
 
 	values = frappe._dict()
-	args = frappe.parse_json(args)
-	filters = args.filters or frappe._dict()
 
-	standard_queries = frappe.get_hooks().standard_queries or {}
-
-	if not args.get("query") and doctype in standard_queries:
-		args.update({"query" : standard_queries[doctype][-1]})
-
-	if args.get("query"):
-		if not search_link(doctype, docname, args.get("query"), filters):
-			return values
-		filters = {'name' : docname}
-	else:
-		if isinstance(filters, list):
-			filters.append(["name", "=", docname])
-		else:	
-			filters.update({'name' : docname})
-			
 	if is_virtual_doctype(doctype):
 		try:
 			frappe.get_doc(doctype, docname)
@@ -467,8 +466,7 @@ def validate_link(doctype: str, docname: str, fields=None, args=None):
 			)
 		return values
 
-	result = frappe.db.get_list(doctype, filters = filters,pluck = 'name')
-	if result: values.name = result[0]
+	values.name = frappe.db.get_value(doctype, docname, cache=True)
 
 	fields = frappe.parse_json(fields)
 	if not values.name or not fields:
@@ -518,9 +516,13 @@ def delete_doc(doctype, name):
 	if frappe.is_table(doctype):
 		values = frappe.db.get_value(doctype, name, ["parenttype", "parent", "parentfield"])
 		if not values:
-			raise frappe.DoesNotExistError
+			raise frappe.DoesNotExistError(doctype=doctype)
+
 		parenttype, parent, parentfield = values
 		parent = frappe.get_doc(parenttype, parent)
+		if not parent.has_permission("write"):
+			raise frappe.DoesNotExistError(doctype=doctype)
+
 		for row in parent.get(parentfield):
 			if row.name == name:
 				parent.remove(row)

@@ -23,6 +23,7 @@
    "fieldname": "path",
    "fieldtype": "Data",
    "label": "Path",
+   "search_index": 1,
    "set_only_once": 1
   },
   {
@@ -107,6 +108,7 @@
  ],
  "quick_entry": 1,
  "read_only": 1,
+ "row_format": "Compressed",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
