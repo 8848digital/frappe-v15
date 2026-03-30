@@ -249,10 +249,11 @@ def validate_url(
 
 def random_string(length: int) -> str:
 	"""generate a random string"""
+	import secrets
 	import string
-	from random import choice
 
-	return "".join(choice(string.ascii_letters + string.digits) for i in range(length))
+	alphabet = string.ascii_letters + string.digits
+	return "".join(secrets.choice(alphabet) for i in range(length))
 
 
 def has_gravatar(email: str) -> str:
