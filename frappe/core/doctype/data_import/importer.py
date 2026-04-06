@@ -13,6 +13,7 @@ from frappe.core.doctype.version.version import get_diff
 from frappe.model import no_value_fields
 from frappe.utils import cint, cstr, duration_to_seconds, flt, update_progress_bar
 from frappe.utils.csvutils import get_csv_content_from_google_sheets, read_csv_content
+from frappe.utils.data import escape_html
 from frappe.utils.xlsxutils import (
 	read_xls_file_from_attached_file,
 	read_xlsx_file_from_attached_file,
@@ -747,7 +748,9 @@ class Row:
 		elif df.fieldtype == "Link":
 			exists = self.link_exists(value, df)
 			if not exists:
-				msg = _("Value {0} missing for {1}").format(frappe.bold(value), frappe.bold(df.options))
+				msg = _("Value {0} missing for {1}").format(
+					frappe.bold(escape_html(cstr(value))), frappe.bold(df.options)
+				)
 				self.warnings.append(
 					{
 						"row": self.row_number,
@@ -766,11 +769,31 @@ class Row:
 						"col": col.column_number,
 						"field": df_as_json(df),
 						"message": _("Value {0} must in {1} format").format(
-							frappe.bold(value), frappe.bold(get_user_format(col.date_format))
+							frappe.bold(escape_html(cstr(value))),
+							frappe.bold(get_user_format(col.date_format)),
 						),
 					}
 				)
 				return
+<<<<<<< HEAD
+=======
+		elif df.fieldtype == "Datetime":
+			value = self.get_datetime(value, col)
+			if isinstance(value, str):
+				# value was not parsed as datetime object
+				self.warnings.append(
+					{
+						"row": self.row_number,
+						"col": col.column_number,
+						"field": df_as_json(df),
+						"message": _("Value {0} must in {1} format").format(
+							frappe.bold(escape_html(cstr(value))),
+							frappe.bold(get_user_format(col.date_format)),
+						),
+					}
+				)
+				return
+>>>>>>> e562966d46 (fix(security): escape html in invalidation warnings)
 		elif df.fieldtype == "Duration":
 			if not DURATION_PATTERN.match(value):
 				self.warnings.append(
@@ -779,7 +802,7 @@ class Row:
 						"col": col.column_number,
 						"field": df_as_json(df),
 						"message": _("Value {0} must be in the valid duration format: d h m s").format(
-							frappe.bold(value)
+							frappe.bold(escape_html(cstr(value)))
 						),
 					}
 				)
@@ -1034,7 +1057,7 @@ class Column:
 			]
 			not_exists = list(set(values) - set(exists))
 			if not_exists:
-				missing_values = ", ".join(not_exists)
+				missing_values = ", ".join(escape_html(v) for v in not_exists)
 				message = _("The following values do not exist for {0}: {1}")
 				self.warnings.append(
 					{
@@ -1071,7 +1094,7 @@ class Column:
 				invalid = values - set(options)
 				if invalid:
 					valid_values = ", ".join(frappe.bold(o) for o in options)
-					invalid_values = ", ".join(frappe.bold(i) for i in invalid)
+					invalid_values = ", ".join(frappe.bold(escape_html(i)) for i in invalid)
 					message = _("The following values are invalid: {0}. Values must be one of {1}")
 					self.warnings.append(
 						{
