@@ -25,7 +25,7 @@ frappe.ui.form.Attachments = class Attachments {
 		});
 
 		this.add_attachment_wrapper = this.parent.find(".attachments-actions");
-		this.attachments_label = this.parent.find(".attachments-label");
+		this.attachments_label = this.parent.find(".explore-link");
 	}
 	max_reached(raise_exception = false) {
 		const attachment_count = Object.keys(this.get_attachments()).length;
