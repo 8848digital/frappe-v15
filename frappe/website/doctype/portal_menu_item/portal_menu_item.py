@@ -14,6 +14,7 @@ class PortalMenuItem(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		application_type: DF.Link | None
 		enabled: DF.Check
 		parent: DF.Data
 		parentfield: DF.Data
