@@ -16,7 +16,6 @@ import werkzeug.utils
 from werkzeug.exceptions import Forbidden, NotFound
 from werkzeug.local import LocalProxy
 from werkzeug.wrappers import Response
-from werkzeug.wsgi import wrap_file
 
 import frappe
 import frappe.model.document
@@ -24,10 +23,7 @@ import frappe.sessions
 import frappe.utils
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
-<<<<<<< HEAD
-=======
 from frappe.core.doctype.file.utils import check_path_safety
->>>>>>> 0dccd8d07a (chore: resolve conflicts)
 from frappe.utils import format_timedelta
 
 if TYPE_CHECKING:
@@ -273,6 +269,13 @@ def download_backup(path):
 		raise Forbidden(
 			_("You need to be logged in and have System Manager Role to be able to access backups.")
 		)
+
+	filename = path.split("/backups/", 1)[1]
+	backup_path = frappe.get_site_path("private", "backups")
+	requested_path = frappe.get_site_path("private", "backups", filename)
+	is_safe = check_path_safety(base_path=backup_path, requested_path=requested_path)
+	if not is_safe:
+		frappe.throw(_("Invalid backup path"), frappe.PermissionError)
 
 	return send_private_file(path)
 
