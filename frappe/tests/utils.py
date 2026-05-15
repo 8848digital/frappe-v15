@@ -391,3 +391,11 @@ def check_orpahned_doctypes():
 		frappe.throw(
 			"Following doctypes exist in DB without controller.\n {}".format("\n".join(orpahned_doctypes))
 		)
+
+
+		
+def if_app_installed(app_name):
+    return unittest.skipIf(
+        app_name not in frappe.get_installed_apps(),
+        f"{app_name} not installed"
+    )
