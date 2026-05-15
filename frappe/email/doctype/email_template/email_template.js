@@ -6,27 +6,7 @@
 // });
 
 
-frappe.ui.form.on("Document Status Update", {
-    doctype_name: function (frm, cdt, cdn) {
-        var row = locals[cdt][cdn];
-		if (!row.doctype_name) {
-			return;
-		}
-		frappe.model.with_doctype(row.doctype_name, () => {
-			const fieldnames = frappe
-				.get_meta(row.doctype_name)
-				.fields.filter((field) => !frappe.model.no_value_type.includes(field.fieldtype))
-				.map((field) => field.fieldname);
 
-			frm.fields_dict.status_update.grid.update_docfield_property(
-				"update_doc_field",
-				"options",
-				[""].concat(fieldnames)
-			);
-		});
-	},
-
-});
 
 frappe.ui.form.on("Document Exclude Status", {
 	doctype_name: function (frm, cdt, cdn) {

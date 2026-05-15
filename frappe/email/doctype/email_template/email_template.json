@@ -59,12 +59,6 @@
    "options": "Jinja"
   },
   {
-   "fieldname": "status_update",
-   "fieldtype": "Table",
-   "label": "Document Status Update",
-   "options": "Document Status Update"
-  },
-  {
    "fieldname": "section_break_ghyf",
    "fieldtype": "Section Break"
   },
