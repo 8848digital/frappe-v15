@@ -975,10 +975,12 @@ class TestDDLCommandsPost(FrappeTestCase):
 	def test_is(self):
 		user = frappe.qb.DocType("User")
 		self.assertIn(
-			"is not null", frappe.db.get_values(user, filters={user.name: ("is", "set")}, run=False).lower()
+			'coalesce("name",',
+			frappe.db.get_values(user, filters={user.name: ("is", "set")}, run=False).lower(),
 		)
 		self.assertIn(
-			"is null", frappe.db.get_values(user, filters={user.name: ("is", "not set")}, run=False).lower()
+			'coalesce("name",',
+			frappe.db.get_values(user, filters={user.name: ("is", "not set")}, run=False).lower(),
 		)
 
 
@@ -1065,6 +1067,31 @@ class TestConcurrency(FrappeTestCase):
 		with self.secondary_connection():
 			self.assertRaises(frappe.QueryTimeoutError, frappe.delete_doc, note.doctype, note.name)
 
+	@timeout(5, "unexpected locking")
+	def test_value_cache_invalidation(self):
+		note = frappe.new_doc("Note")
+		note.title = note.content = frappe.generate_hash()
+		note.insert()
+		frappe.db.commit()  # ensure that second connection can see the document
+		original_title = note.title
+		new_title = frappe.generate_hash()
+
+		with self.primary_connection():
+			note = frappe.get_doc(note.doctype, note.name)
+			note.title = new_title
+			note.save()  # NOT commited yet, secondary connection will still see old value
+
+		with self.secondary_connection():
+			rr_value = frappe.db.get_value("Note", note.name, "title", cache=True)
+			self.assertEqual(rr_value, original_title)
+
+		with self.primary_connection():
+			frappe.db.commit()
+
+		with self.secondary_connection():
+			frappe.db.rollback()
+			new_value = frappe.db.get_value("Note", note.name, "title", cache=True)
+			self.assertEqual(new_value, new_title)
 
 class TestSqlIterator(FrappeTestCase):
 	def test_db_sql_iterator(self):

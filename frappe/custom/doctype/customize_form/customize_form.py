@@ -2,9 +2,10 @@
 # MIT License. See LICENSE
 
 """
-	Customize Form is a Single DocType used to mask the Property Setter
-	Thus providing a better UI from user perspective
+Customize Form is a Single DocType used to mask the Property Setter
+Thus providing a better UI from user perspective
 """
+
 import json
 
 import frappe
@@ -51,6 +52,7 @@ class CustomizeForm(Document):
 		email_append_to: DF.Check
 		fields: DF.Table[CustomizeFormField]
 		force_re_route_to_default_view: DF.Check
+		grid_page_length: DF.Int
 		image_field: DF.Data | None
 		is_calendar_and_gantt: DF.Check
 		istable: DF.Check
@@ -72,6 +74,8 @@ class CustomizeForm(Document):
 		protect_attached_files: DF.Check
 		queue_in_background: DF.Check
 		quick_entry: DF.Check
+		recipient_account_field: DF.Data | None
+		rows_threshold_for_grid_search: DF.Int
 		search_fields: DF.Data | None
 		sender_field: DF.Data | None
 		sender_name_field: DF.Data | None
@@ -744,6 +748,8 @@ doctype_properties = {
 	"default_view": "Select",
 	"force_re_route_to_default_view": "Check",
 	"translated_doctype": "Check",
+	"grid_page_length": "Int",
+	"rows_threshold_for_grid_search": "Int",
 }
 
 docfield_properties = {
