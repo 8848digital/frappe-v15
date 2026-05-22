@@ -24,6 +24,10 @@ import frappe.sessions
 import frappe.utils
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
+<<<<<<< HEAD
+=======
+from frappe.core.doctype.file.utils import check_path_safety
+>>>>>>> 0dccd8d07a (chore: resolve conflicts)
 from frappe.utils import format_timedelta
 
 if TYPE_CHECKING:
