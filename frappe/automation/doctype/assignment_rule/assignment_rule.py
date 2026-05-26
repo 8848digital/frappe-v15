@@ -20,14 +20,13 @@ class AssignmentRule(Document):
 
 	if TYPE_CHECKING:
 		from frappe.automation.doctype.assignment_rule_day.assignment_rule_day import AssignmentRuleDay
-		from frappe.automation.doctype.assignment_rule_user.assignment_rule_user import (
-			AssignmentRuleUser,
-		)
+		from frappe.automation.doctype.assignment_rule_user.assignment_rule_user import AssignmentRuleUser
 		from frappe.types import DF
 
 		assign_condition: DF.Code
 		assignment_days: DF.Table[AssignmentRuleDay]
 		close_condition: DF.Code | None
+		current_index: DF.Int
 		description: DF.SmallText
 		disabled: DF.Check
 		document_type: DF.Link
@@ -35,9 +34,11 @@ class AssignmentRule(Document):
 		field: DF.Literal[None]
 		last_user: DF.Link | None
 		priority: DF.Int
-		rule: DF.Literal["Round Robin", "Load Balancing", "Based on Field"]
+		rule: DF.Literal["Round Robin", "Load Balancing", "Based on Field", "Weighted Distribution"]
 		unassign_condition: DF.Code | None
 		users: DF.TableMultiSelect[AssignmentRuleUser]
+		weighted_users: DF.Table[AssignmentRuleUser]
+	# end: auto-generated types
 
 	# end: auto-generated types
 	def validate(self):
