@@ -405,6 +405,9 @@ class BaseDocument:
 				elif df.fieldtype in float_like_fields and not isinstance(value, float):
 					value = flt(value)
 
+				elif df.fieldtype == "Read Only" and not isinstance(value, str):
+					value = cstr(value)
+
 				elif (df.fieldtype in datetime_fields and value == "") or (
 					getattr(df, "unique", False) and cstr(value).strip() == ""
 				):
@@ -1104,7 +1107,7 @@ class BaseDocument:
 			df = self.meta.get_field(key)
 			db_value = db_values.get(key)
 
-			if df and not df.allow_on_submit and (self.get(key) or db_value):
+			if df and not df.allow_on_submit and not df.is_virtual and (self.get(key) or db_value):
 				if df.fieldtype in table_fields:
 					# just check if the table size has changed
 					# individual fields will be checked in the loop for children

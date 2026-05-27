@@ -10,6 +10,7 @@ be used to build database driven apps.
 
 Read the documentation: https://frappeframework.com/docs
 """
+
 import faulthandler
 import functools
 import gc
@@ -22,24 +23,14 @@ import signal
 import traceback
 import unicodedata
 import warnings
-from collections.abc import Callable, Iterable
-from typing import (
-	TYPE_CHECKING,
-	Any,
-	Generic,
-	Literal,
-	Optional,
-	TypeAlias,
-	TypeVar,
-	Union,
-	overload,
-)
-from .types.frappedict import _dict
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypeAlias, overload
+
 import click
-from werkzeug.local import Local, LocalProxy, release_local
+from werkzeug.local import Local, release_local
 
 import frappe
-from frappe.query_builder.utils import (
+from frappe.query_builder import (
 	get_query,
 	get_query_builder,
 	patch_query_aggregation,
@@ -60,30 +51,44 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.89.0"
+__version__ = "15.108.0"
 __title__ = "Frappe Framework"
 
-
+# This if block is never executed when running the code. It is only used for
+# telling static code analyzer where to find dynamically defined attributes.
 if TYPE_CHECKING:  # pragma: no cover
-	from logging import Logger
-	from types import ModuleType
-
 	from werkzeug.wrappers import Request
+
 	from frappe.database.mariadb.database import MariaDBDatabase
 	from frappe.database.postgres.database import PostgresDatabase
 	from frappe.email.doctype.email_queue.email_queue import EmailQueue
 	from frappe.model.document import Document
 	from frappe.query_builder.builder import MariaDB, Postgres
-	from frappe.types.lazytranslatedstring import _LazyTranslate
 	from frappe.utils.redis_wrapper import RedisWrapper
-	
-controllers: dict[str, "Document"] = {}
 
+	db: MariaDBDatabase | PostgresDatabase
+	qb: MariaDB | Postgres
+	cache: RedisWrapper
+	response: _dict
+	conf: _dict
+	form_dict: _dict
+	flags: _dict
+	request: Request
+	session: _dict
+	user: str
+	flags: _dict
+	lang: str
+
+
+# end: static analysis hack
+
+
+controllers = {}
 local = Local()
-cache: Optional["RedisWrapper"] = None
+cache = None
 STANDARD_USERS = ("Guest", "Administrator")
+SITE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 
-_qb_patched: dict[str, bool] = {}
 _one_time_setup = {}
 _dev_server = int(sbool(os.environ.get("DEV_SERVER", False)))
 _tune_gc = bool(sbool(os.environ.get("FRAPPE_TUNE_GC", True)))
@@ -100,7 +105,6 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 	        _('Change', context='Coins')
 	"""
 	from frappe.translate import get_all_translations
-	from frappe.utils import is_html, strip_html_tags
 
 	if not hasattr(local, "lang"):
 		local.lang = lang or "en"
@@ -108,28 +112,31 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 	if not lang:
 		lang = local.lang
 
+	all_translations = get_all_translations(lang)
 	non_translated_string = msg
-
-	if is_html(msg):
-		msg = strip_html_tags(msg)
 
 	# msg should always be unicode
 	msg = as_unicode(msg).strip()
+	msg_with_html = as_unicode(non_translated_string).strip()
+	msg_list = [msg, msg_with_html]
 
-	translated_string = ""
+	for msg in msg_list:
+		translated_string = ""
 
-	all_translations = get_all_translations(lang)
-	if context:
-		string_key = f"{msg}:{context}"
-		translated_string = all_translations.get(string_key)
+		if context:
+			string_key = f"{msg}:{context}"
+			translated_string = all_translations.get(string_key)
 
-	if not translated_string:
-		translated_string = all_translations.get(msg)
+		if not translated_string:
+			translated_string = all_translations.get(msg)
 
-	return translated_string or non_translated_string
+		if translated_string:
+			return translated_string
+
+	return non_translated_string
 
 
-def _lt(msg: str, lang: str | None = None, context: str | None = None) -> "_LazyTranslate":
+def _lt(msg: str, lang: str | None = None, context: str | None = None):
 	"""Lazily translate a string.
 
 
@@ -143,6 +150,7 @@ def _lt(msg: str, lang: str | None = None, context: str | None = None) -> "_Lazy
 	"""
 	from .types.lazytranslatedstring import _LazyTranslate
 
+	return _LazyTranslate(msg, lang, context)
 
 
 def as_unicode(text, encoding: str = "utf-8") -> str:
@@ -166,61 +174,31 @@ def set_user_lang(user: str, user_language: str | None = None) -> None:
 
 # local-globals
 
-ConfType: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-# TODO: make session a dataclass instead of undtyped _dict
-SessionType: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-# TODO: implement dataclass
-LogMessageType: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-# TODO: implement dataclass
-# holds job metadata if the code is run in a background job context
-JobMetaType: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-ResponseDict: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-FlagsDict: TypeAlias = _dict[str, Any]  # type: ignore[no-any-explicit]
-FormDict: TypeAlias = _dict[str, str]
+db = local("db")
+qb = local("qb")
+conf = local("conf")
+form = form_dict = local("form_dict")
+request = local("request")
+job = local("job")
+response = local("response")
+session = local("session")
+user = local("user")
+flags = local("flags")
 
-db: LocalProxy[Union["MariaDBDatabase", "PostgresDatabase"]] = local("db")
-qb: LocalProxy[Union["MariaDB", "Postgres"]] = local("qb")
-conf: LocalProxy[ConfType] = local("conf")
-form_dict: LocalProxy[FormDict] = local("form_dict")
-form = form_dict
-request: LocalProxy["Request"] = local("request")
+error_log = local("error_log")
+debug_log = local("debug_log")
+message_log = local("message_log")
+
+lang = local("lang")
 
 
-job: LocalProxy[JobMetaType] = local("job")
-response: LocalProxy[ResponseDict] = local("response")
-session: LocalProxy[SessionType] = local("session")
-user: LocalProxy[str] = local("user")
-flags: LocalProxy[FlagsDict] = local("flags")
-
-error_log: LocalProxy[list[dict[str, str]]] = local("error_log")
-debug_log: LocalProxy[list[str]] = local("debug_log")
-message_log: LocalProxy[list[LogMessageType]] = local("message_log")
-
-lang: LocalProxy[str] = local("lang")
-
-if TYPE_CHECKING:  # pragma: no cover
-	# trick because some type checkers fail to follow "RedisWrapper", etc (written as string literal)
-	# trough a generic wrapper; seems to be a bug
-	db: MariaDBDatabase | PostgresDatabase
-	qb: MariaDB | Postgres
-	conf: ConfType
-	form_dict: FormDict
-	request: Request
-	session: SessionType
-	user: str
-	flags: FlagsDict
-	session: JobMetaType
-	response: ResponseDict
-	error_log: list[dict[str, str]]
-	debug_log: list[str]
-	message_log: list[LogMessageType]
-	lang: str
-
-
-def init(site: str, sites_path: str = ".", new_site: bool = False, force: bool = False) -> None:
+def init(site: str, sites_path: str = ".", new_site: bool = False, force=False) -> None:
 	"""Initialize frappe for the current site. Reset thread locals `frappe.local`"""
 	if getattr(local, "initialised", None) and not force:
 		return
+
+	if site and not SITE_NAME_PATTERN.match(site):
+		raise ValueError(f"Invalid site name `{site}`")
 
 	local.error_log = []
 	local.message_log = []
@@ -241,7 +219,7 @@ def init(site: str, sites_path: str = ".", new_site: bool = False, force: bool =
 			"read_only": False,
 		}
 	)
-	local.locked_documents: list["Document"] = []
+	local.locked_documents = []
 	local.test_objects = {}
 
 	local.site = site
@@ -318,7 +296,7 @@ def connect(site: str | None = None, db_name: str | None = None, set_admin_as_us
 def connect_replica() -> bool:
 	from frappe.database import get_db
 
-	if hasattr(local, "replica_db") and hasattr(local, "primary_db"):
+	if local and hasattr(local, "replica_db") and hasattr(local, "primary_db"):
 		return False
 
 	user = local.conf.db_name
@@ -344,14 +322,14 @@ def connect_replica() -> bool:
 
 	if hasattr(frappe.local, "_recorder"):
 		frappe.local._recorder._patch_sql(local.db)
-		
+
 	return True
 
 
-def get_site_config(sites_path: str | None = None, site_path: str | None = None) -> _dict[str, Any]:
+def get_site_config(sites_path: str | None = None, site_path: str | None = None) -> dict[str, Any]:
 	"""Returns `site_config.json` combined with `sites/common_site_config.json`.
 	`site_config` is a set of site wide settings like database name, password, email etc."""
-	config: _dict[str, Any] = _dict()
+	config = _dict()
 
 	sites_path = sites_path or getattr(local, "sites_path", None)
 	site_path = site_path or getattr(local, "site_path", None)
@@ -407,7 +385,7 @@ def get_site_config(sites_path: str | None = None, site_path: str | None = None)
 	return config
 
 
-def get_common_site_config(sites_path: str | None = None) -> _dict[str, Any]:
+def get_common_site_config(sites_path: str | None = None) -> dict[str, Any]:
 	"""Returns common site config as dictionary.
 
 	This is useful for:
@@ -426,7 +404,7 @@ def get_common_site_config(sites_path: str | None = None) -> _dict[str, Any]:
 	return _dict()
 
 
-def get_conf(site: str | None = None) -> _dict[str, Any]:
+def get_conf(site: str | None = None) -> dict[str, Any]:
 	if hasattr(local, "conf"):
 		return local.conf
 
@@ -832,10 +810,10 @@ def sendmail(
 	return builder.process(send_now=now)
 
 
-whitelisted: set[Callable] = set()
-guest_methods: set[Callable] = set()
-xss_safe_methods: set[Callable] = set()
-allowed_http_methods_for_whitelisted_func: dict[Callable, list[str]] = {}
+whitelisted = []
+guest_methods = []
+xss_safe_methods = []
+allowed_http_methods_for_whitelisted_func = {}
 
 
 def whitelist(allow_guest=False, xss_safe=False, methods=None):
@@ -873,15 +851,14 @@ def whitelist(allow_guest=False, xss_safe=False, methods=None):
 		else:
 			fn = validate_argument_types(fn, apply_condition=in_request_or_test)
 
-		#convert set to list fixed
-		whitelisted.add(fn)
+		whitelisted.append(fn)
 		allowed_http_methods_for_whitelisted_func[fn] = methods
 
 		if allow_guest:
-			guest_methods.add(fn)
+			guest_methods.append(fn)
 
 			if xss_safe:
-				xss_safe_methods.add(fn)
+				xss_safe_methods.append(fn)
 
 		return method or fn
 
@@ -919,7 +896,7 @@ def read_only():
 			try:
 				retval = fn(*args, **get_newargs(fn, kwargs))
 			finally:
-				if switched_connection and hasattr(local, "primary_db"):
+				if switched_connection and local and hasattr(local, "primary_db"):
 					local.db.close()
 					local.db = local.primary_db
 
@@ -1088,7 +1065,7 @@ def has_permission(
 	if throw and not out:
 		if doc:
 			frappe.permissions.check_doctype_permission(doctype, ptype)
-			
+
 		document_label = f"{_(doctype)} {doc if isinstance(doc, str) else doc.name}" if doc else _(doctype)
 		frappe.flags.error_message = _("No permission for {0}").format(document_label)
 		raise frappe.PermissionError
@@ -1203,7 +1180,7 @@ def set_value(doctype, docname, fieldname, value=None):
 	return frappe.client.set_value(doctype, docname, fieldname, value)
 
 
-def get_cached_doc(*args: Any, **kwargs: Any) -> "Document":
+def get_cached_doc(*args, **kwargs) -> "Document":
 	if (key := can_cache_doc(args)) and (doc := cache.get_value(key)):
 		return doc
 
@@ -1263,9 +1240,7 @@ def clear_document_cache(doctype: str, name: str | None = None) -> None:
 		delattr(local, "website_settings")
 
 
-def get_cached_value(
-	doctype: str, name: str, fieldname: str | Iterable[str] = "name", as_dict: bool = False
-) -> Any:
+def get_cached_value(doctype: str, name: str, fieldname: str = "name", as_dict: bool = False) -> Any:
 	try:
 		doc = get_cached_doc(doctype, name)
 	except DoesNotExistError:
@@ -1318,7 +1293,7 @@ def get_doc(documentdict: dict) -> "_NewDocument":
 	pass
 
 
-def get_doc(*args: Any, **kwargs: Any) -> "Document":
+def get_doc(*args, **kwargs):
 	"""Return a `frappe.model.document.Document` object of the given type and name.
 
 	:param arg1: DocType name as string **or** document JSON.
@@ -1480,7 +1455,7 @@ def rename_doc(
 	)
 
 
-def get_module(modulename: str) -> "ModuleType":
+def get_module(modulename):
 	"""Returns a module object for given Python module name using `importlib.import_module`."""
 	return importlib.import_module(modulename)
 
@@ -1569,7 +1544,7 @@ def get_all_apps(with_internal_apps=True, sites_path=None):
 
 
 @request_cache
-def get_installed_apps(*, _ensure_on_bench: bool = False) -> list[str]:
+def get_installed_apps(*, _ensure_on_bench=False) -> list[str]:
 	"""
 	Get list of installed apps in current site.
 
@@ -1784,6 +1759,7 @@ def call(fn: str | Callable, *args, **kwargs):
 
 	return fn(*args, **newargs)
 
+
 _cached_inspect_signature = functools.lru_cache(inspect.signature)
 
 
@@ -1887,8 +1863,8 @@ def import_doc(path):
 
 
 def copy_doc(doc: "Document", ignore_no_copy: bool = True) -> "Document":
-	import copy
 	"""No_copy fields also get copied."""
+	import copy
 
 	def remove_no_copy_fields(d):
 		for df in d.meta.get("fields", {"no_copy": 1}):
@@ -2157,6 +2133,7 @@ def format(*args, **kwargs):
 
 	return frappe.utils.formatters.format_value(*args, **kwargs)
 
+
 def attach_print(
 	doctype,
 	name,
@@ -2176,6 +2153,9 @@ def attach_print(
 
 	print_settings = db.get_singles_dict("Print Settings")
 
+	if print_letterhead and not letterhead:
+		letterhead = get_cached_value("Letter Head", {"is_default": 1}, "name")
+
 	kwargs = dict(
 		print_format=print_format,
 		style=style,
@@ -2187,16 +2167,27 @@ def attach_print(
 
 	local.flags.ignore_print_permissions = True
 
+	is_weasyprint_print_format = False
+	if print_format and print_format != "Standard":
+		print_format_doc = get_cached_doc("Print Format", print_format)
+		is_weasyprint_print_format = print_format_doc.get("print_format_builder_beta")
+
 	with print_language(lang or local.lang):
 		content = ""
 		if cint(print_settings.send_print_as_pdf):
 			ext = ".pdf"
-			kwargs["as_pdf"] = True
-			content = (
-				get_pdf(html, options={"password": password} if password else None)
-				if html
-				else get_print(doctype, name, **kwargs)
-			)
+			if html:
+				content = get_pdf(html, options={"password": password} if password else None)
+			elif is_weasyprint_print_format:
+				from frappe.utils.weasyprint import PrintFormatGenerator
+
+				doc_obj = doc or get_cached_doc(doctype, name)
+				letterhead_name = letterhead if print_letterhead else None
+				generator = PrintFormatGenerator(print_format, doc_obj, letterhead_name)
+				content = generator.render_pdf()
+			else:
+				kwargs["as_pdf"] = True
+				content = get_print(doctype, name, **kwargs)
 		else:
 			ext = ".html"
 			content = html or scrub_urls(get_print(doctype, name, **kwargs)).encode("utf-8")
@@ -2309,8 +2300,9 @@ def get_doctype_app(doctype):
 
 	return local_cache("doctype_app", doctype, generator=_get_doctype_app)
 
-loggers: dict[str, "Logger"] = {}
-log_level: int | None = None
+
+loggers = {}
+log_level = None
 
 
 def logger(module=None, with_more_info=False, allow_site=True, filter=None, max_size=100_000, file_count=20):
@@ -2327,16 +2319,30 @@ def logger(module=None, with_more_info=False, allow_site=True, filter=None, max_
 	)
 
 
-def get_desk_link(doctype, name, show_title_with_name=False):
+def get_desk_link(doctype, name, show_title_with_name=False, open_in_new_tab=False):
+	from urllib.parse import quote
+
 	meta = get_meta(doctype)
 	title = get_value(doctype, name, meta.get_title_field())
 
-	if show_title_with_name and name != title:
-		html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {name}: {title_local}</a>'
-	else:
-		html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {title_local}</a>'
+	target_attr = ' target="_blank"' if open_in_new_tab else ""
 
-	return html.format(doctype=doctype, name=name, doctype_local=_(doctype), title_local=_(title))
+	# encode for href
+	encoded_name = quote(name)
+
+	if show_title_with_name and name != title:
+		html = '<a href="/app/Form/{doctype}/{encoded_name}"{target} style="font-weight: bold;">{doctype_local} {name}: {title_local}</a>'
+	else:
+		html = '<a href="/app/Form/{doctype}/{encoded_name}"{target} style="font-weight: bold;">{doctype_local} {title_local}</a>'
+
+	return html.format(
+		doctype=doctype,
+		name=name,
+		encoded_name=encoded_name,
+		doctype_local=_(doctype),
+		title_local=_(title),
+		target=target_attr,
+	)
 
 
 def bold(text):
@@ -2531,10 +2537,12 @@ def _register_fault_handler():
 	if isinstance(sys.__stderr__, io.TextIOWrapper):
 		faulthandler.register(signal.SIGUSR1, file=sys.__stderr__)
 
+
 def override_whitelisted_method(original_method: str) -> str:
 	"""Return the last override or the original whitelisted method."""
 	overrides = get_hooks("override_whitelisted_methods", {}).get(original_method, [])
 	return overrides[-1] if overrides else original_method
+
 
 from frappe.utils.error import log_error
 from frappe.utils.print_utils import get_print

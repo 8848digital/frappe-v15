@@ -500,6 +500,8 @@ frappe.setup.slides_settings = [
 		],
 
 		onload: function (slide) {
+			slide.form.fields_dict.password?.$input?.attr("autocomplete", "new-password");
+
 			if (frappe.session.user !== "Administrator") {
 				const { first_name, last_name, email } = frappe.boot.user;
 				if (first_name || last_name) {
@@ -673,6 +675,7 @@ frappe.setup.utils = {
 		slide.get_input("country").on("change", function () {
 			let data = frappe.setup.data.regional_data;
 			let country = slide.get_input("country").val();
+			country = country.replace(/\s*\([^)]*\)/, "");
 			if (!(country in data.country_info)) return;
 
 			let $timezone = slide.get_input("timezone");

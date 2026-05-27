@@ -70,8 +70,12 @@ class Report(Document):
 			if frappe.db.get_value("Report", self.name, "is_standard") == "Yes":
 				frappe.throw(_("Cannot edit a standard report. Please duplicate and create a new report"))
 
-		if self.is_standard == "Yes" and frappe.session.user != "Administrator":
-			frappe.throw(_("Only Administrator can save a standard report. Please rename and save."))
+		if self.is_standard == "Yes":
+			self.validate_standard_report()
+
+			# Letter Head is visible only for non-standard reports.
+			# It should not remain set when it's invisible.
+			self.letter_head = None
 
 		if self.report_type == "Report Builder":
 			self.update_report_json()
@@ -83,7 +87,7 @@ class Report(Document):
 		self.export_doc()
 
 	def before_export(self, doc):
-		doc.letterhead = None
+		doc.letter_head = None
 		doc.prepared_report = 0
 
 	def on_trash(self):
@@ -380,6 +384,18 @@ class Report(Document):
 			data.append(_row)
 
 		return data
+
+	def validate_standard_report(self):
+		if frappe.session.user != "Administrator":
+			frappe.throw(_("Only Administrator can save a standard report. Please rename and save."))
+
+		if not cint(frappe.conf.developer_mode) and not (
+			frappe.flags.in_migrate
+			or frappe.flags.in_patch
+			or frappe.flags.in_install
+			or frappe.flags.in_import
+		):
+			frappe.throw(_("Standard reports can only be created in developer mode."))
 
 	@frappe.whitelist()
 	def toggle_disable(self, disable: bool):
