@@ -170,6 +170,18 @@ frappe.ui.form.on("Auto Email Report", {
 					},
 				});
 				dialog.show();
+
+				// add filters defined in onload event of report
+				if (reference_report.onload) {
+					frappe.query_report = new frappe.views.QueryReport({
+						filters: dialog.fields_list,
+					});
+					reference_report.onload(frappe.query_report);
+				}
+
+				dialog.doc = dialog.doc || {};
+				dialog.fields_list.forEach((f) => (f.doc = dialog.doc));
+
 				dialog.set_values(filters);
 			});
 
