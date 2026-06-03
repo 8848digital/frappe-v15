@@ -572,6 +572,7 @@
 	position: relative;
 }
 
+<<<<<<< HEAD
 .grid-selection-toast {
 	position: sticky;
 	bottom: var(--padding-md);
@@ -590,6 +591,18 @@
 		padding: var(--padding-xs) var(--padding-md);
 	}
 }
+<<<<<<< HEAD
+=======
+=======
+.form-grid-container:has(.grid-row.grid-row-open) {
+	overflow-x: clip;
+	white-space: normal;
+	overflow-y: unset;
+	.form-grid {
+		left: 0px !important;
+	}
+}
+>>>>>>> 2952836221 (fix: remove selected row banner)
 .sortable-handle span {
 	width: 31px;
 	display: block;
@@ -708,6 +721,10 @@
 	justify-content: center;
 	align-items: center;
 }
+<<<<<<< HEAD
+=======
+>>>>>>> c2bdc531f7 (fix: remove selected row banner)
+>>>>>>> 2952836221 (fix: remove selected row banner)
 
 @media (max-width: map-get($grid-breakpoints, "md")) {
 	.form-grid-container {

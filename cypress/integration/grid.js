@@ -111,6 +111,11 @@ context("Grid", () => {
 				cy.get("@table-form").find(".grid-footer-toolbar").click();
 			});
 	});
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 2952836221 (fix: remove selected row banner)
 
 	it("shows edit button only when child table allow_bulk_edit is enabled", () => {
 		cy.visit("/desk/contact/Test Contact");
@@ -197,4 +202,8 @@ context("Grid", () => {
 
 		cy.get("@table").find(".grid-add-row").should("not.have.class", "hidden");
 	});
+<<<<<<< HEAD
+=======
+>>>>>>> c2bdc531f7 (fix: remove selected row banner)
+>>>>>>> 2952836221 (fix: remove selected row banner)
 });
