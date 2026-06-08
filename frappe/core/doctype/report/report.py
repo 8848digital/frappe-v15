@@ -444,3 +444,18 @@ def get_group_by_column_label(args, meta):
 
 def enable_prepared_report(report: str):
 	frappe.db.set_value("Report", report, "prepared_report", 1)
+	frappe.db.commit()
+	frappe.destroy()
+
+
+@frappe.whitelist()
+def get_duckdb_instances(report_name: str):
+	# TODO: permissions
+	if report_name:
+		doctype = frappe.db.get_value("Report", report_name, "ref_doctype")
+		if duckdbs := frappe.db.get_all(
+			"DuckDB Sync", filters={"doc_type": doctype}, fields=["name", "creation"]
+		):
+			return duckdbs
+
+	return False
