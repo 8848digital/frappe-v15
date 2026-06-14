@@ -815,6 +815,7 @@
    "fieldtype": "Check",
    "label": "Dashboard"
 <<<<<<< HEAD
+<<<<<<< HEAD
   },
   {
    "default": "0",
@@ -824,6 +825,8 @@
 =======
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> 2e0e50d262 (chore: resolve conflict)
   },
   {
    "default": "0",
@@ -849,8 +852,11 @@
    "fieldname": "form_navigation_buttons",
    "fieldtype": "Check",
    "label": "Navigation Buttons"
+<<<<<<< HEAD
 >>>>>>> ffa2a6bfa5 (fix(ui): add navigation buttons back)
 >>>>>>> a2ca2d7793 (fix(ui): add navigation buttons back)
+=======
+>>>>>>> 2e0e50d262 (chore: resolve conflict)
   }
  ],
  "icon": "fa fa-user",
@@ -914,11 +920,7 @@
   }
  ],
  "make_attachments_public": 1,
-<<<<<<< HEAD
- "modified": "2025-05-21 14:57:24.333141",
-=======
  "modified": "2026-01-02 16:00:51.406511",
->>>>>>> ffa2a6bfa5 (fix(ui): add navigation buttons back)
  "modified_by": "Administrator",
  "module": "Core",
  "name": "User",
