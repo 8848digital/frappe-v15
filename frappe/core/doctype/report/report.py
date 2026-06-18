@@ -179,6 +179,7 @@ class Report(Document):
 
 		# The JOB
 		try:
+			# TODO call duckdb method here
 			if self.is_standard == "Yes":
 				res = self.execute_module(filters)
 			else:
