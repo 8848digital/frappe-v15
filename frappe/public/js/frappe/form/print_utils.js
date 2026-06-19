@@ -46,6 +46,22 @@ frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_column
 		},
 	];
 
+<<<<<<< HEAD
+=======
+	if (has_filters) {
+		columns.push({
+			label: __("Include filters"),
+			fieldtype: "Check",
+			fieldname: "include_filters",
+<<<<<<< HEAD
+=======
+			depends_on: "eval: !doc.print_format",
+			default: 1,
+>>>>>>> cde23beb94 (fix: check "Include filters" by default in report print/PDF settings)
+		});
+	}
+
+>>>>>>> 607def32c6 (fix: check "Include filters" by default in report print/PDF settings)
 	if (pick_columns) {
 		columns.push(
 			{
