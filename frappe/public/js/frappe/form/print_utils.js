@@ -53,11 +53,7 @@ frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_column
 			label: __("Include filters"),
 			fieldtype: "Check",
 			fieldname: "include_filters",
-<<<<<<< HEAD
-=======
-			depends_on: "eval: !doc.print_format",
 			default: 1,
->>>>>>> cde23beb94 (fix: check "Include filters" by default in report print/PDF settings)
 		});
 	}
 
