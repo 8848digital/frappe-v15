@@ -281,6 +281,11 @@
 	.group-by-box .row > div[class*="col-sm-"] {
 		margin-bottom: 5px;
 	}
+
+	#page-query-report .datatable .dt-scrollable {
+		height: calc(100vh - 200px) !important;
+		height: calc(100dvh - 200px) !important;
+	}
 }
 .check-filter-area {
 	display: flex;
