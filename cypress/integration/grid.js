@@ -127,7 +127,7 @@ context("Grid", () => {
 			});
 	});
 	it("keeps child table in sync after backend removes a reordered row", () => {
-		let original_order;
+		let original_rows;
 		cy.visit("/app/log-settings");
 		cy.window()
 			.its("cur_frm")
@@ -154,13 +154,9 @@ context("Grid", () => {
 				cy.get(
 					'.frappe-control[data-fieldname="logs_to_clear"] .grid-body .grid-row'
 				).should("have.length", rows.length);
-				// restore the original order so the global singleton is left untouched
-				rows.sort(
-					(a, b) =>
-						original_order.indexOf(a.ref_doctype) -
-						original_order.indexOf(b.ref_doctype)
-				);
-				rows.forEach((row, i) => (row.idx = i + 1));
+				// restore the full original table so the global singleton is left untouched
+				frm.doc.logs_to_clear = [];
+				original_rows.forEach((row) => frm.add_child("logs_to_clear", row));
 				frm.refresh_field("logs_to_clear");
 			});
 		cy.save();
