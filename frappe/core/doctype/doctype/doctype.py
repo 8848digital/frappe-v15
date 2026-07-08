@@ -1638,6 +1638,40 @@ def validate_fields(meta: Meta):
 			if docfield.options and (int(docfield.options) > 10 or int(docfield.options) < 3):
 				frappe.throw(_("Options for Rating field can range from 3 to 10"))
 
+	def check_decimal_config(docfield):
+		if docfield.fieldtype not in ("Currency", "Float", "Percent"):
+			return
+
+		if docfield.length and docfield.precision:
+			if cint(docfield.precision) > cint(docfield.length):
+				frappe.throw(
+					_("Precision ({0}) for {1} cannot be greater than its length ({2}).").format(
+						docfield.precision, frappe.bold(docfield.label), docfield.length
+					)
+				)
+
+	def validate_link_filters(docfield):
+		if not docfield.link_filters:
+			return
+
+		try:
+			link_filters = json.loads(docfield.link_filters)
+		except (TypeError, ValueError):
+			frappe.throw(
+				_("Invalid Link Filters for field {0}. Link Filters must be valid JSON.").format(
+					frappe.bold(docfield.label or docfield.fieldname)
+				)
+			)
+
+		if not isinstance(link_filters, list) or any(
+			not isinstance(filter_row, list) or len(filter_row) != 4 for filter_row in link_filters
+		):
+			frappe.throw(
+				_(
+					"Invalid Link Filters for field {0}. Link Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value."
+				).format(frappe.bold(docfield.label or docfield.fieldname))
+			)
+
 	fields = meta.get("fields")
 	fieldname_list = [d.fieldname for d in fields]
 
@@ -1660,6 +1694,8 @@ def validate_fields(meta: Meta):
 		scrub_options_in_select(d)
 		validate_fetch_from(d)
 		validate_data_field_type(d)
+		check_decimal_config(d)
+		validate_link_filters(d)
 
 		if not frappe.flags.in_migrate:
 			check_unique_fieldname(meta.get("name"), d.fieldname)
