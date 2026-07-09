@@ -39,7 +39,7 @@ def get(args=None):
 
 
 @frappe.whitelist()
-def add(args=None, *, ignore_permissions=False):
+def add(args=None):
 	"""add in someone's to do list
 	args = {
 	        "assign_to": [],
@@ -50,6 +50,10 @@ def add(args=None, *, ignore_permissions=False):
 	}
 
 	"""
+	return _add(args, ignore_permissions=False)
+
+
+def _add(args=None, *, ignore_permissions=False):
 	if not args:
 		args = frappe.local.form_dict
 
@@ -71,10 +75,8 @@ def add(args=None, *, ignore_permissions=False):
 		else:
 			from frappe.utils import nowdate
 
-			if not args.get("description"):
-				description = args.get("description") or ""
-				has_content = strip_html(description) or "<img" in description
-
+			description = args.get("description") or ""
+			has_content = strip_html(description) or "<img" in description
 			if not has_content:
 				args["description"] = _("Assignment for {0} {1}").format(args["doctype"], args["name"])
 
@@ -110,7 +112,7 @@ def add(args=None, *, ignore_permissions=False):
 					)
 					frappe.throw(msg, title=_("Missing Permission"))
 				else:
-					frappe.share.add(doc.doctype, doc.name, assign_to)
+					frappe.share.add(doc.doctype, str(doc.name), assign_to)
 					shared_with_users.append(assign_to)
 
 			# make this document followed by assigned user
