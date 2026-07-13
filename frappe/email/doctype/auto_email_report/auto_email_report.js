@@ -3,7 +3,6 @@
 
 frappe.ui.form.on("Auto Email Report", {
 	refresh: function (frm) {
-		frm.trigger("fetch_report_filters");
 		if (!frm.is_new()) {
 			frm.add_custom_button(__("Download"), function () {
 				var w = window.open(
