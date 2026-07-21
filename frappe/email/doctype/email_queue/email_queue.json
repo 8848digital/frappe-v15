@@ -26,7 +26,6 @@
   "attachments",
   "retry",
   "email_account",
-  "raw_html",
   "redact_message_after_send"
  ],
  "fields": [
@@ -150,18 +149,6 @@
    "fieldtype": "Link",
    "label": "Email Account",
    "options": "Email Account"
-  },
-  {
-   "label": "Unsubscribe Params",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "description": "Raw HTML emails are rendered as complete Jinja templates. Otherwise, emails are wrapped in the standard.html email template, which inserts brand_logo, header and footer.",
-   "fieldname": "raw_html",
-   "fieldtype": "Check",
-   "label": "Send As Raw HTML",
-   "read_only": 1
   },
   {
    "default": "0",
