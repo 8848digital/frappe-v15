@@ -14,7 +14,6 @@ from frappe.desk.form.document_follow import is_document_followed
 from frappe.model.utils.user_settings import get_user_settings
 from frappe.permissions import check_doctype_permission, get_doc_permissions
 from frappe.utils.data import cstr
-from frappe.utils.html_utils import clean_email_html
 
 if typing.TYPE_CHECKING:
 	from frappe.model.document import Document
@@ -44,12 +43,12 @@ def getdoc(doctype, name):
 			frappe.bold(_(doctype) + " " + name)
 		)
 		raise frappe.PermissionError(("read", doctype, name))
-	
+
 	# Replace cache if stale one exists
 	# PERF: This should be eventually removed completely when we are sure about caching correctness
 	if (key := frappe.can_cache_doc((doctype, name))) and frappe.cache.exists(key):
 		frappe._set_document_in_cache(key, doc)
-	
+
 	run_onload(doc)
 	doc.apply_fieldlevel_read_permissions()
 
@@ -139,7 +138,7 @@ def get_docinfo(doc=None, doctype=None, name=None):
 		}
 	)
 
-	update_user_info(docinfo)
+	update_user_info(docinfo, doc)
 
 	frappe.response["docinfo"] = docinfo
 
@@ -202,7 +201,7 @@ def get_versions(doc: "Document") -> list[dict]:
 		return []
 	return frappe.get_all(
 		"Version",
-		filters=dict(ref_doctype=doc.doctype, docname=doc.name),
+		filters=dict(ref_doctype=doc.doctype, docname=str(doc.name)),
 		fields=["name", "owner", "creation", "data"],
 		limit=10,
 		order_by="creation desc",
@@ -266,7 +265,6 @@ def _get_communications(doctype, name, start=0, limit=20):
 	communications = get_communication_data(doctype, name, start, limit)
 	for c in communications:
 		if c.communication_type in ("Communication", "Automated Message"):
-			clean_email_html(c.content)
 			c.attachments = json.dumps(
 				frappe.get_all(
 					"File",
@@ -285,11 +283,11 @@ def get_communication_data(
 	if not fields:
 		fields = """
 			C.name, C.communication_type, C.communication_medium,
-			C.communication_date, C.content,
+			C.comment_type, C.communication_date, C.content,
 			C.sender, C.sender_full_name, C.cc, C.bcc,
 			C.creation AS creation, C.subject, C.delivery_status,
 			C._liked_by, C.reference_doctype, C.reference_name,
-			C.read_by_recipient, C.recipients
+			C.read_by_recipient, C.rating, C.recipients
 		"""
 
 	conditions = ""
@@ -308,9 +306,11 @@ def get_communication_data(
 	part1 = f"""
 		SELECT {fields}
 		FROM `tabCommunication` as C
-		WHERE C.communication_type IN ('Communication', 'Automated Message')
+		WHERE C.communication_type IN ('Communication', 'Feedback', 'Automated Message')
 		AND (C.reference_doctype = %(doctype)s AND C.reference_name = %(name)s)
 		{conditions}
+		ORDER BY C.communication_date DESC
+		LIMIT %(cte_limit)s
 	"""
 
 	# communications linked in Timeline Links
@@ -318,25 +318,33 @@ def get_communication_data(
 		SELECT {fields}
 		FROM `tabCommunication` as C
 		INNER JOIN `tabCommunication Link` ON C.name=`tabCommunication Link`.parent
-		WHERE C.communication_type IN ('Communication', 'Automated Message')
+		WHERE C.communication_type IN ('Communication', 'Feedback', 'Automated Message')
 		AND `tabCommunication Link`.link_doctype = %(doctype)s AND `tabCommunication Link`.link_name = %(name)s
 		{conditions}
+		ORDER BY `tabCommunication Link`.communication_date DESC
+		LIMIT %(cte_limit)s
 	"""
 
 	return frappe.db.sql(
-		"""
+		f"""
+		WITH part1 AS ({part1}), part2 AS ({part2})
 		SELECT *
-		FROM (({part1}) UNION ({part2})) AS combined
-		{group_by}
+		FROM (
+			SELECT * FROM part1
+			UNION
+			SELECT * FROM part2
+		) AS combined
+		{group_by or ""}
 		ORDER BY communication_date DESC
 		LIMIT %(limit)s
 		OFFSET %(start)s
-	""".format(part1=part1, part2=part2, group_by=(group_by or "")),
+	""",
 		dict(
 			doctype=doctype,
 			name=str(name),
 			start=frappe.utils.cint(start),
 			limit=limit,
+			cte_limit=limit + start,
 		),
 		as_dict=as_dict,
 	)
@@ -472,8 +480,13 @@ def send_link_titles(link_titles):
 	frappe.local.response["_link_titles"].update(link_titles)
 
 
-def update_user_info(docinfo):
+def update_user_info(docinfo, doc=None):
 	users = set()
+
+	if doc:
+		for field in ("owner", "modified_by"):
+			if user := doc.get(field):
+				users.add(user)
 
 	users.update(d.sender for d in docinfo.communications)
 	users.update(d.user for d in docinfo.shared)
@@ -485,6 +498,7 @@ def update_user_info(docinfo):
 	users.update(d.owner for d in docinfo.attachment_logs)
 	users.update(d.owner for d in docinfo.assignment_logs)
 	users.update(d.owner for d in docinfo.comments)
+	users.update(d.owner for d in docinfo.versions)
 
 	frappe.utils.add_user_info(users, docinfo.user_info)
 

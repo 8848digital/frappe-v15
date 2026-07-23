@@ -8,6 +8,7 @@ import mimetypes
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import quote
 
@@ -147,7 +148,7 @@ def as_pdf():
 	response = Response()
 	response.mimetype = "application/pdf"
 	filename = frappe.response["filename"].encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", None, filename=filename)
+	response.headers.add("Content-Disposition", "inline", filename=filename)
 	response.data = frappe.response["filecontent"]
 	return response
 
@@ -157,7 +158,7 @@ def as_binary():
 	response.mimetype = "application/octet-stream"
 	filename = frappe.response["filename"]
 	filename = filename.encode("utf-8").decode("unicode-escape", "ignore")
-	response.headers.add("Content-Disposition", None, filename=filename)
+	response.headers.add("Content-Disposition", "attachment", filename=filename)
 	response.data = frappe.response["filecontent"]
 	return response
 
@@ -241,6 +242,9 @@ def json_handler(obj):
 	
 	elif hasattr(obj, "__value__"):  # order imporant: defer to __json__ if implemented
 		return obj.__value__()
+
+	elif isinstance(obj, Path):
+		return str(obj)
 
 	else:
 		raise TypeError(f"""Object of type {type(obj)} with value of {obj!r} is not JSON serializable""")
