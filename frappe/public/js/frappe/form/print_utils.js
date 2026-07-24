@@ -46,8 +46,6 @@ frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_column
 		},
 	];
 
-<<<<<<< HEAD
-=======
 	if (has_filters) {
 		columns.push({
 			label: __("Include filters"),
@@ -57,7 +55,6 @@ frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_column
 		});
 	}
 
->>>>>>> 607def32c6 (fix: check "Include filters" by default in report print/PDF settings)
 	if (pick_columns) {
 		columns.push(
 			{
