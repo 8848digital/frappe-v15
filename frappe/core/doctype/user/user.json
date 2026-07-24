@@ -814,30 +814,12 @@
    "fieldname": "dashboard",
    "fieldtype": "Check",
    "label": "Dashboard"
-<<<<<<< HEAD
-<<<<<<< HEAD
-  },
-  {
-   "default": "0",
-   "fieldname": "show_absolute_datetime_format",
-   "fieldtype": "Check",
-   "label": "Show absolute datetime values"
-=======
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 2e0e50d262 (chore: resolve conflict)
   },
   {
    "default": "1",
    "fieldname": "form_navigation_buttons",
    "fieldtype": "Check",
    "label": "Navigation Buttons"
-<<<<<<< HEAD
->>>>>>> ffa2a6bfa5 (fix(ui): add navigation buttons back)
->>>>>>> a2ca2d7793 (fix(ui): add navigation buttons back)
-=======
->>>>>>> 2e0e50d262 (chore: resolve conflict)
   }
  ],
  "icon": "fa fa-user",
