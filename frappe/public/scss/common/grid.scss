@@ -572,26 +572,6 @@
 	position: relative;
 }
 
-<<<<<<< HEAD
-.grid-selection-toast {
-	position: sticky;
-	bottom: var(--padding-md);
-	width: fit-content;
-	margin-left: auto;
-	margin-right: auto;
-	margin-top: calc(var(--padding-md) * -1);
-	z-index: 2;
-	display: none;
-
-	&__message {
-		display: inline-block;
-		background-color: rgba(0, 0, 0, 0.8);
-		color: var(--gray-50);
-		border-radius: var(--border-radius-sm);
-		padding: var(--padding-xs) var(--padding-md);
-	}
-}
-=======
 .form-grid-container:has(.grid-row.grid-row-open) {
 	overflow-x: clip;
 	white-space: normal;
@@ -718,7 +698,6 @@
 	justify-content: center;
 	align-items: center;
 }
->>>>>>> c2bdc531f7 (fix: remove selected row banner)
 
 @media (max-width: map-get($grid-breakpoints, "md")) {
 	.form-grid-container {
