@@ -78,7 +78,7 @@ notification_skip_email_types = ["Alert"]
 # Notification Types that are delivered even when the recipient is also the actor
 # (for_user == from_user). Other types suppress self-notifications.
 # TODO: This should not be hardcoded and a configurable option in future.
-notification_self_notify_types = ["Alert"]
+notification_self_notify_types = ["Alert", "Energy Point"]
 
 before_tests = "frappe.utils.install.before_tests"
 
