@@ -245,8 +245,6 @@ frappe.printing.doctype.print_format.patches.sets_wkhtmltopdf_as_default_for_pdf
 frappe.patches.v16_0.social_eps_deprecation_warning
 frappe.core.doctype.communication_link.patches.copy_communication_date_to_link
 frappe.core.doctype.communication.patches.drop_ref_dt_dn_index
-<<<<<<< HEAD
-=======
 frappe.patches.v16_0.change_link_type_to_workspace_sidebar
 frappe.patches.v16_0.add_standard_field_in_workspace_sidebar
 execute:frappe.db.set_single_value("Desktop Settings", "icon_style", "Solid")
@@ -261,4 +259,4 @@ frappe.patches.v16_0.sync_installed_apps_to_site_config
 frappe.patches.v16_0.backfill_notification_log_title_description
 frappe.patches.v16_0.backfill_notification_email_type_preferences
 frappe.patches.v16_0.backfill_notification_log_app
->>>>>>> 133edd2a60 (feat(ui): backport @framework/ui component library to v16)
+execute:frappe.db.set_single_value("Contact Us Settings", "send_acknowledgement_email", 1)
