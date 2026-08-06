@@ -91,13 +91,13 @@ def get_max_file_size() -> int:
 	)
 
 
+
 def get_max_extract_size() -> int:
 	return (
 		cint(frappe.get_system_settings("max_zip_extract_size")) * 1024 * 1024
 		or cint(frappe.conf.get("max_zip_extract_size"))
 		or 25 * 1024 * 1024
 	)
-
 
 @frappe.whitelist()
 def create_new_folder(file_name: str, folder: str) -> File:
