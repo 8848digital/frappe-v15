@@ -516,26 +516,13 @@ def get_auto_repeat_entries(date=None):
 
 
 @frappe.whitelist()
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-def make_auto_repeat(doctype, docname, frequency="Daily", start_date=None, end_date=None):
-=======
->>>>>>> f3c694c6d6 (fix: add type hints to whitelisted methods 3 (#37149))
 def make_auto_repeat(
 	doctype: str,
 	docname: str | int,
 	frequency: str = "Daily",
-<<<<<<< HEAD
-	start_date: str | None = None,
-	end_date: str | None = None,
-):
-=======
 	start_date: str | datetime | None = None,
 	end_date: str | datetime | None = None,
 ):
->>>>>>> c55ff193a6 (fix: add type hints to whitelisted methods 3 (#37149))
->>>>>>> f3c694c6d6 (fix: add type hints to whitelisted methods 3 (#37149))
 	if not start_date:
 		start_date = getdate(today())
 	doc = frappe.new_doc("Auto Repeat")
