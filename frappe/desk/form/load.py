@@ -3,7 +3,8 @@
 
 import json
 import typing
-from urllib.parse import quote
+from typing import Any
+from urllib.parse import quote, quote_plus
 
 import frappe
 import frappe.defaults
@@ -62,7 +63,7 @@ def getdoc(doctype: str, name: str | int):
 
 
 @frappe.whitelist()
-def getdoctype(doctype, with_parent=False, cached_timestamp=None):
+def getdoctype(doctype: str, with_parent: int | bool = False, cached_timestamp: str | None = None):
 	"""load doctype"""
 
 	docs = []
