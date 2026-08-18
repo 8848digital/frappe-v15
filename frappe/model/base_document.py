@@ -560,8 +560,8 @@ class BaseDocument:
 			set_new_name(self)
 
 		if frappe.db.db_type == "postgres":
-			self.show_unique_validation_message_for_postgress()
-			
+			self.show_unique_validation_message_for_postgress(ignore_if_duplicate)
+
 		conflict_handler = ""
 		# On postgres we can't implcitly ignore PK collision
 		# So instruct pg to ignore `name` field conflicts
@@ -619,10 +619,10 @@ class BaseDocument:
 
 		self.set("__islocal", False)
 
-	def show_unique_validation_message_for_postgress(self):
+	def show_unique_validation_message_for_postgress(self, ignore_if_duplicate=False):
 		# Prepare to check for duplicates based on unique columns
 		unique_column = self.get_unique_columns()  # Custom method to retrieve unique columns
-		if unique_column:	
+		if unique_column:
 			# Prepare the WHERE clause for checking duplicates
 			where_clause = " AND ".join([f"LOWER({col}) = LOWER(%s)" for col in unique_column])
 			values_to_check = [self.get_value(col).lower() for col in unique_column]  # Get values from the document and convert to lower case
@@ -632,12 +632,12 @@ class BaseDocument:
 				f"""SELECT COUNT(*) FROM "tab{self.doctype}" WHERE {where_clause}""",
 				values_to_check
 			)[0][0]
-			
-			unique_column = unique_column[0].title()
-			if '_' in unique_column:
-				unique_column = unique_column.replace('_', ' ')
 
-			if existing_record > 0:
+			if existing_record > 0 and not ignore_if_duplicate:
+				unique_column = unique_column[0].title()
+				if '_' in unique_column:
+					unique_column = unique_column.replace('_', ' ')
+
 				frappe.msgprint(
 					_("{0} must be unique").format(unique_column),
 					title=_("Message"),
