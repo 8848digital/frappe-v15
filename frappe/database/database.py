@@ -107,6 +107,17 @@ class Database:
 		self.before_rollback = CallbackManager()
 		self.after_rollback = CallbackManager()
 
+		# Tracks names of currently open `frappe.db.savepoint()` scopes (innermost last),
+		# so query errors can be recovered from without discarding the whole transaction.
+		self._savepoint_stack = []
+
+		# Guards against infinite recursion when the error-recovery rollback below
+		# itself fails (e.g. the connection is actually dead, not just the
+		# transaction aborted) — without this, sql() -> rollback() -> sql() ->
+		# rollback() -> ... recurses until Python's stack blows up with an opaque
+		# RecursionError instead of surfacing the real connection failure.
+		self._in_error_rollback = False
+
 		# self.db_type: str
 		# self.last_query (lazy) attribute of last sql query executed
 
@@ -235,8 +246,22 @@ class Database:
 		try:
 			self._cursor.execute(query, values)
 		except Exception as e:
-			if self.db_type == "postgres":
-				frappe.db.rollback()
+			if self.db_type == "postgres" and not self._in_error_rollback:
+				# Postgres aborts the whole transaction after any failed statement
+				# until a rollback happens. If we're inside an active
+				# `frappe.db.savepoint()` scope, only undo that scope instead of
+				# discarding the entire (possibly much larger) transaction — this
+				# is what lets `with frappe.db.savepoint(catch=...)` actually work
+				# as scoped error recovery instead of being silently defeated by a
+				# full rollback here.
+				self._in_error_rollback = True
+				try:
+					if self._savepoint_stack:
+						self.rollback(save_point=self._savepoint_stack[-1])
+					else:
+						frappe.db.rollback()
+				finally:
+					self._in_error_rollback = False
 
 			if self.is_syntax_error(e):
 				frappe.log(f"Syntax error in query:\n{query} {values or ''}")
@@ -1140,6 +1165,7 @@ class Database:
 		self.begin()  # explicitly start a new transaction
 
 		self.value_cache.clear()
+		self._savepoint_stack.clear()
 		self.after_commit.run()
 
 	def rollback(self, *, save_point=None):
@@ -1147,6 +1173,11 @@ class Database:
 		if save_point:
 			self.sql(f"rollback to savepoint {save_point}")
 			self.value_cache.clear()
+			# ROLLBACK TO SAVEPOINT keeps the savepoint itself open (only discards
+			# changes made since it was set), so pop any nested savepoints opened
+			# after it, but keep `save_point` itself on the stack.
+			while self._savepoint_stack and self._savepoint_stack[-1] != save_point:
+				self._savepoint_stack.pop()
 		else:
 			self.before_commit.reset()
 			self.after_commit.reset()
@@ -1158,6 +1189,7 @@ class Database:
 
 			self.value_cache.clear()
 			self.after_rollback.run()
+			self._savepoint_stack.clear()
 
 	def savepoint(self, save_point):
 		"""Savepoints work as a nested transaction.
@@ -1168,9 +1200,12 @@ class Database:
 		        so only changes to database are undone when rolling back to a savepoint.
 		        Avoid using savepoints when writing to filesystem."""
 		self.sql(f"savepoint {save_point}")
+		self._savepoint_stack.append(save_point)
 
 	def release_savepoint(self, save_point):
 		self.sql(f"release savepoint {save_point}")
+		if save_point in self._savepoint_stack:
+			self._savepoint_stack.remove(save_point)
 
 	def field_exists(self, dt, fn):
 		"""Return true of field exists."""
