@@ -2,7 +2,6 @@ import "./assign_to";
 import "./attachments";
 import "./share";
 import "./review";
-import "./document_follow";
 import "./user_image";
 import "./form_sidebar_users";
 import { get_user_link, get_user_message } from "../footer/version_timeline_content_builder";
@@ -16,7 +15,9 @@ frappe.ui.form.Sidebar = class {
 		var sidebar_content = frappe.render_template("form_sidebar", {
 			doctype: this.frm.doctype,
 			frm: this.frm,
-			can_write: frappe.model.can_write(this.frm.doctype, this.frm.docname),
+			can_write:
+				frappe.model.can_write(this.frm.doctype, this.frm.docname) &&
+				!this.frm.fields_dict[this.frm.meta.image_field]?.df.read_only,
 		});
 
 		this.sidebar = $('<div class="form-sidebar overlay-sidebar hidden-xs hidden-sm"></div>')

@@ -129,6 +129,9 @@ def get():
 	"""get session boot info"""
 	from frappe.boot import get_bootinfo, get_unseen_notes
 	from frappe.utils.change_log import get_change_log
+	from frappe.utils.legacy_gravatar_cleanup import (
+		should_show_gravatar_deletion_prompt,
+	)
 
 	bootinfo = None
 	if not getattr(frappe.conf, "disable_session_cache", None):
@@ -181,6 +184,7 @@ def get():
 	bootinfo["user"]["impersonated_by"] = frappe.session.data.get("impersonated_by")
 	bootinfo["navbar_settings"] = frappe.get_cached_doc("Navbar Settings")
 	bootinfo.has_app_updates = has_app_update_notifications()
+	bootinfo.show_gravatar_deletion_prompt = should_show_gravatar_deletion_prompt()
 
 	return bootinfo
 
@@ -387,9 +391,11 @@ class Session:
 		last_updated = frappe.cache.hget("last_db_session_update", self.sid)
 		time_diff = frappe.utils.time_diff_in_seconds(now, last_updated) if last_updated else None
 
+		threshold = min(get_expiry_in_seconds() / 2, 600) or 600
+
 		# database persistence is secondary, don't update it too often
 		updated_in_db = False
-		if (force or (time_diff is None) or (time_diff > 600)) and not frappe.flags.read_only:
+		if (force or (time_diff is None) or (time_diff > threshold)) and not frappe.flags.read_only:
 			self.data.data.last_updated = now
 			self.data.data.lang = str(frappe.lang)
 			# update sessions table

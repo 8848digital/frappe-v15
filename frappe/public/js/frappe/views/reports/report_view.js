@@ -162,12 +162,37 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	set_link_title_field_value() {
+		let rows = this.datatable?.datamanager?.rows;
+		let link_col_indices = this.datatable?.datamanager?.columns
+			?.filter((c) => c.docfield?.fieldtype === "Link")
+			.map((c) => c.colIndex);
+
 		Object.keys(this.link_title_doctype_fields).forEach(async (key) => {
 			let link_title = await this.get_link_title_field_value(
 				this.link_title_doctype_fields[key],
 				key
 			);
-			document.querySelector(`a[data-name="${key}"]`).innerHTML = link_title;
+
+			if (link_title === undefined) return;
+
+			// update visible DOM elements and cell tooltip
+			document.querySelectorAll(`a[data-name="${key}"]`).forEach((el) => {
+				if (el.textContent === link_title) return;
+				el.textContent = link_title;
+
+				$(el).closest(".dt-cell__content").attr("title", link_title);
+			});
+
+			if (rows?.length && link_col_indices?.length) {
+				for (let row of rows) {
+					for (let ci of link_col_indices) {
+						let cell = row[ci];
+						if (cell?.content === key && cell.html) {
+							cell.html = null;
+						}
+					}
+				}
+			}
 		});
 	}
 
@@ -603,16 +628,16 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 		control.df.change = () => control.set_focus();
 
+		const cell = this.datatable.getCell(colIndex, rowIndex);
+		const fieldname = this.datatable.getColumn(colIndex).docfield.fieldname;
+		const docname = cell.name;
+		const doctype = cell.doctype;
+
 		return {
 			initValue: (value) => {
 				return control.set_value(value);
 			},
 			setValue: (value) => {
-				const cell = this.datatable.getCell(colIndex, rowIndex);
-				let fieldname = this.datatable.getColumn(colIndex).docfield.fieldname;
-				let docname = cell.name;
-				let doctype = cell.doctype;
-
 				control.set_value(value);
 				return this.set_control_value(doctype, docname, fieldname, value)
 					.then((updated_doc) => {
@@ -645,6 +670,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 							} else {
 								_data[field] = updated_doc[field];
 							}
+						}
+
+						const cell_at_index =
+							this.datatable.datamanager.rows[rowIndex]?.[colIndex];
+						if (cell_at_index?.name !== docname) {
+							this.datatable.refresh(this.get_data(this.data), this.columns);
 						}
 					})
 					.then(() => this.refresh_charts());
@@ -711,9 +742,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		} else if (expression.substr(0, 5) == "eval:") {
 			try {
 				out = frappe.utils.eval(expression.substr(5), { doc: data });
-				if (parent && parent.istable && expression.includes("is_submittable")) {
-					out = true;
-				}
 			} catch (e) {
 				frappe.throw(__('Invalid "depends_on" expression'));
 			}
@@ -965,13 +993,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		);
 
 		// add status field derived from docstatus, if status is not a standard field
-		let has_status_values = false;
-
-		if (this.data) {
-			has_status_values = frappe.get_indicator(this.data[0], this.doctype);
-		}
-
-		if (!frappe.meta.has_field(this.doctype, "status") && has_status_values) {
+		if (!frappe.meta.has_field(this.doctype, "status") && frappe.has_indicator(this.doctype)) {
 			doctype_fields = [
 				{
 					label: __("Status"),
@@ -1024,7 +1046,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			columns: 2,
 			options: columns[this.doctype]
 				.filter((df) => {
-					return !df.hidden && df.fieldname !== "name";
+					return !df.hidden && df.fieldname !== "name" && !df.is_virtual;
 				})
 				.map((df) => ({
 					label: __(df.label, null, df.parent),
@@ -1083,8 +1105,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			} else {
 				// if status is not in fields append status column derived from docstatus
 				if (
-					!this.fields.includes(["status", this.doctype]) &&
-					!frappe.meta.has_field(this.doctype, "status")
+					!frappe.meta.has_field(this.doctype, "status") &&
+					frappe.has_indicator(this.doctype)
 				) {
 					column = this.build_column(["docstatus", this.doctype]);
 				}
@@ -1201,6 +1223,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 					doc = row.reduce((acc, curr) => {
 						if (!curr.column.docfield) return acc;
 						if (
+							curr.content &&
 							curr.column.docfield.fieldtype == "Link" &&
 							frappe.boot.link_title_doctypes.includes(
 								curr.column.docfield.options
@@ -1536,6 +1559,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			},
 			{
 				label: __("Print"),
+				condition: () => frappe.model.can_print(this.doctype),
 				action: () => {
 					// prepare rows in their current state, sorted and filtered
 					const rows_in_order = this.datatable.datamanager.rowViewOrder

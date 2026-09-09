@@ -27,7 +27,7 @@
  "Algeria": {
   "code": "dz",
   "currency": "DZD",
-  "currency_fraction": "Santeem",
+  "currency_fraction": "Centime",
   "currency_fraction_units": 100,
   "currency_name": "Algerian Dinar",
   "currency_symbol": "\u062f.\u062c",
@@ -131,7 +131,12 @@
    "America/Argentina/San_Juan",
    "America/Argentina/San_Luis",
    "America/Argentina/Tucuman",
-   "America/Argentina/Ushuaia"
+   "America/Argentina/Ushuaia",
+   "America/Buenos_Aires",
+   "America/Catamarca",
+   "America/Cordoba",
+   "America/Jujuy",
+   "America/Mendoza"
   ],
   "isd": "+54"
  },
@@ -344,7 +349,8 @@
  },
  "Bonaire, Sint Eustatius and Saba": {
   "code": "bq",
-  "number_format": "#,###.##"
+  "number_format": "#,###.##",
+  "isd": "+599"
  },
  "Bosnia and Herzegovina": {
   "code": "ba",
@@ -527,7 +533,8 @@
    "America/Vancouver",
    "America/Whitehorse",
    "America/Winnipeg",
-   "America/Yellowknife"
+   "America/Yellowknife",
+   "America/Coral_Harbour"
   ],
   "isd": "+1"
  },
@@ -734,7 +741,8 @@
   "currency_fraction": "Cent",
   "currency_fraction_units": 100,
   "currency_symbol": "\u0192",
-  "number_format": "#,###.##"
+  "number_format": "#,###.##",
+  "isd": "+599"
  },
  "Cyprus": {
   "code": "cy",
@@ -876,7 +884,8 @@
   "currency_symbol": "Nfk",
   "number_format": "#,###.##",
   "timezones": [
-   "Africa/Asmara"
+   "Africa/Asmara",
+   "Africa/Asmera"
   ],
   "isd": "+291"
  },
@@ -920,7 +929,8 @@
   "currency_symbol": "kr",
   "number_format": "#,###.##",
   "timezones": [
-   "Atlantic/Faroe"
+   "Atlantic/Faroe",
+   "Atlantic/Faeroe"
   ],
   "isd": "+298"
  },
@@ -1084,7 +1094,8 @@
    "America/Danmarkshavn",
    "America/Godthab",
    "America/Scoresbysund",
-   "America/Thule"
+   "America/Thule",
+   "America/Nuuk"
   ],
   "isd": "+299"
  },
@@ -1266,7 +1277,8 @@
   "currency_symbol": "\u20b9",
   "number_format": "#,##,###.##",
   "timezones": [
-   "Asia/Kolkata"
+   "Asia/Kolkata",
+   "Asia/Calcutta"
   ],
   "isd": "+91"
  },
@@ -1369,7 +1381,7 @@
   "currency_fraction": "Centime",
   "currency_fraction_units": 100,
   "number_format": "#,###.##",
-  "timeszones": [
+  "timezones": [
    "Africa/Abidjan"
   ],
   "isd": "+225"
@@ -1463,7 +1475,8 @@
   "timezones": [
    "Pacific/Enderbury",
    "Pacific/Kiritimati",
-   "Pacific/Tarawa"
+   "Pacific/Tarawa",
+   "Pacific/Kanton"
   ],
   "isd": "+686"
  },
@@ -1891,7 +1904,8 @@
   "currency_name": "Kyat",
   "number_format": "#,###.##",
   "timezones": [
-   "Asia/Rangoon"
+   "Asia/Rangoon",
+   "Asia/Yangon"
   ],
   "isd": "+95"
  },
@@ -1928,7 +1942,8 @@
   "currency_symbol": "\u20a8",
   "number_format": "#,##,###.##",
   "timezones": [
-   "Asia/Kathmandu"
+   "Asia/Kathmandu",
+   "Asia/Katmandu"
   ],
   "isd": "+977"
  },
@@ -2433,7 +2448,8 @@
  },
  "Sint Maarten (Dutch part)": {
   "code": "sx",
-  "number_format": "#,###.##"
+  "number_format": "#,###.##",
+  "isd": "+1721"
  },
  "Slovakia": {
   "code": "sk",
@@ -2802,7 +2818,8 @@
    "Europe/Kiev",
    "Europe/Simferopol",
    "Europe/Uzhgorod",
-   "Europe/Zaporozhye"
+   "Europe/Zaporozhye",
+   "Europe/Kyiv"
   ],
   "isd": "+380"
  },
@@ -2872,7 +2889,9 @@
    "America/Denver",
    "America/Sitka",
    "America/Yakutat",
-   "Pacific/Honolulu"
+   "Pacific/Honolulu",
+   "America/Indianapolis",
+   "America/Louisville"
   ],
   "isd": "+1"
  },
@@ -2959,7 +2978,8 @@
   "number_format": "#,###.##",
   "timezones": [
    "Africa/El_Aaiun"
-  ]
+  ],
+  "isd": "+212"
  },
  "Yemen": {
   "code": "ye",

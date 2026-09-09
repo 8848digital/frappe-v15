@@ -35,8 +35,12 @@ frappe.form.formatters = {
 	},
 	Data: function (value, df) {
 		if (df && df.options == "URL") {
-			if (!value) return;
+			if (!value) return "";
 			return `<a href="${value}" title="Open Link" target="_blank">${value}</a>`;
+		}
+		if (df && df.options == "IBAN") {
+			if (!value) return "";
+			return frappe.utils.get_formatted_iban(value);
 		}
 		value = value == null ? "" : value;
 
@@ -124,12 +128,10 @@ frappe.form.formatters = {
 		var currency = frappe.meta.get_field_currency(docfield, doc);
 
 		let precision;
-		if (typeof docfield.precision == "number") {
-			precision = docfield.precision;
+		if (typeof docfield.precision == "number" || docfield.precision) {
+			precision = cint(docfield.precision);
 		} else {
-			precision = cint(
-				docfield.precision || frappe.boot.sysdefaults.currency_precision || 2
-			);
+			precision = frappe.meta.get_field_precision(docfield, doc);
 		}
 
 		// If you change anything below, it's going to hurt a company in UAE, a bit.
@@ -158,7 +160,7 @@ frappe.form.formatters = {
 	},
 	Check: function (value) {
 		return `<input type="checkbox" disabled
-			class="disabled-${value ? "selected" : "deselected"}">`;
+			class="disabled-${cint(value) ? "selected" : "deselected"}">`;
 	},
 	Link: function (value, docfield, options, doc) {
 		var doctype = docfield._options || docfield.options;
@@ -384,27 +386,28 @@ frappe.form.formatters = {
 		return formatted_values.join(", ");
 	},
 	Color: (value) => {
-		return value
-			? `<div>
-			<div class="selected-color" style="background-color: ${value}"></div>
-			<span class="color-value">${value}</span>
-		</div>`
-			: "";
+		if (!value) return "";
+		let escaped_value = frappe.utils.escape_html(value);
+		return `<div>
+			<div class="selected-color" style="background-color: ${escaped_value}"></div>
+			<span class="color-value">${escaped_value}</span>
+		</div>`;
 	},
 	Icon: (value) => {
-		return value
-			? `<div>
-			<div class="selected-icon">${frappe.utils.icon(value, "md")}</div>
-			<span class="icon-value">${value}</span>
-		</div>`
-			: "";
+		if (!value) return "";
+		let escaped_value = frappe.utils.escape_html(value);
+		return `<div>
+			<div class="selected-icon">${frappe.utils.icon(escaped_value, "md")}</div>
+			<span class="icon-value">${escaped_value}</span>
+		</div>`;
 	},
 	Attach: format_attachment_url,
 	AttachImage: format_attachment_url,
 };
 
 function format_attachment_url(url) {
-	return url ? `<a href="${url}" target="_blank">${url}</a>` : "";
+	let escaped = frappe.utils.escape_html(url);
+	return url ? `<a href="${escaped}" target="_blank">${escaped}</a>` : "";
 }
 
 frappe.form.get_formatter = function (fieldtype) {

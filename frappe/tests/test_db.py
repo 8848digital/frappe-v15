@@ -137,6 +137,14 @@ class TestDB(FrappeTestCase):
 			frappe.db.get_value("DocType", "DocField", order_by="creation desc, modified asc, name", run=0),
 		)
 
+		# Test with list of fields and cache=True
+		result = frappe.db.get_value("User", "Administrator", ["name", "email"], cache=True)
+		self.assertEqual(result, ("Administrator", "admin@example.com"))
+		# Verify cache hit - second call should not execute any queries
+		with self.assertQueryCount(0):
+			cached_result = frappe.db.get_value("User", "Administrator", ["name", "email"], cache=True)
+		self.assertEqual(result, cached_result)
+
 	def test_escape(self):
 		frappe.db.escape("香港濟生堂製藥有限公司 - IT".encode())
 
@@ -1124,3 +1132,29 @@ class TestSqlIterator(FrappeTestCase):
 	def test_unbuffered_cursor(self):
 		with frappe.db.unbuffered_cursor():
 			self.test_db_sql_iterator()
+
+
+class TestMariaDBExceptionUtil(FrappeTestCase):
+	@run_only_if(db_type_is.MARIADB)
+	def test_exception_utils_handle_empty_args(self):
+		"""Exception utility methods should not raise IndexError when e.args is empty."""
+		import pymysql
+
+		from frappe.database.mariadb.database import MariaDBExceptionUtil
+
+		e = pymysql.Error()  # no args
+
+		# None of these should raise; all should return False
+		self.assertFalse(MariaDBExceptionUtil.is_deadlocked(e))
+		self.assertFalse(MariaDBExceptionUtil.is_timedout(e))
+		self.assertFalse(MariaDBExceptionUtil.is_read_only_mode_error(e))
+		self.assertFalse(MariaDBExceptionUtil.is_table_missing(e))
+		self.assertFalse(MariaDBExceptionUtil.is_missing_column(e))
+		self.assertFalse(MariaDBExceptionUtil.is_duplicate_fieldname(e))
+		self.assertFalse(MariaDBExceptionUtil.is_duplicate_entry(e))
+		self.assertFalse(MariaDBExceptionUtil.is_access_denied(e))
+		self.assertFalse(MariaDBExceptionUtil.cant_drop_field_or_key(e))
+		self.assertFalse(MariaDBExceptionUtil.is_syntax_error(e))
+		self.assertFalse(MariaDBExceptionUtil.is_statement_timeout(e))
+		self.assertFalse(MariaDBExceptionUtil.is_data_too_long(e))
+		self.assertFalse(MariaDBExceptionUtil.is_db_table_size_limit(e))

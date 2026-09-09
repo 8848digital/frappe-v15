@@ -73,7 +73,7 @@ def execute_cmd(cmd, from_async=False):
 	try:
 		method = get_attr(cmd)
 	except Exception as e:
-		frappe.throw(_("Failed to get method for command {0} with {1}").format(cmd, e))
+		frappe.throw(_("Failed to get method for command {0} with {1}").format(cmd, str(e)))
 
 	if from_async:
 		method = method.queue
@@ -97,6 +97,10 @@ def run_server_script(server_script):
 
 def is_valid_http_method(method):
 	if frappe.flags.in_safe_exec:
+		return
+
+	# Skip HTTP method validation when running in a background job
+	if hasattr(frappe.local, "job"):
 		return
 
 	http_method = frappe.local.request.method
@@ -172,6 +176,16 @@ def upload_file():
 	if frappe.session.user == "Guest":
 		if frappe.get_system_settings("allow_guests_to_upload_files"):
 			ignore_permissions = True
+			guest_allowed_docs = frappe.get_system_settings("allowed_doctypes_for_guest_uploads")
+			if guest_allowed_docs:
+				target_doctype = frappe.form_dict.doctype
+				allowed_docs = guest_allowed_docs.splitlines()
+				allowed_docs = [doc.strip() for doc in allowed_docs if doc.strip()]
+				if allowed_docs and target_doctype not in allowed_docs:
+					frappe.throw(
+						_("Guests are not allowed to upload files for {0} Doctype").format(target_doctype),
+						frappe.PermissionError,
+					)
 		else:
 			raise frappe.PermissionError
 	else:
@@ -308,6 +322,10 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 	if dt:  # not called from a doctype (from a page)
 		if not dn:
 			dn = dt  # single
+
+		if not isinstance(dn, str | int):
+			frappe.throw("'dn' must be a string or an integer")
+
 		doc = frappe.get_doc(dt, dn)
 
 	else:

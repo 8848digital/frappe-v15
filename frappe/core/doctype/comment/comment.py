@@ -56,13 +56,21 @@ class Comment(Document):
 	no_feed_on_delete = True
 
 	def after_insert(self):
-		notify_mentions(self.reference_doctype, self.reference_name, self.content)
+		notify_mentions(
+			self.reference_doctype,
+			self.reference_name,
+			self.content,
+			source_doctype=self.doctype,
+			source_name=self.name,
+		)
 		self.notify_change("add")
 
 	def validate(self):
 		if not self.comment_email:
 			self.comment_email = frappe.session.user
-		self.content = frappe.utils.sanitize_html(self.content, always_sanitize=True)
+		self.content = frappe.utils.sanitize_html(
+			self.content, always_sanitize=True, disallowed_tags=["form", "input", "button"]
+		)
 
 	def on_update(self):
 		update_comment_in_doc(self)

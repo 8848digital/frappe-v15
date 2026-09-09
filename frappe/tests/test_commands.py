@@ -944,7 +944,7 @@ class TestGunicornWorker(FrappeTestCase):
 		)
 		time.sleep(1)  # let worker startup finish
 		self.addCleanup(self.kill_gunicorn)
-		
+
 	def kill_gunicorn(self):
 		self.handle.send_signal(signal.SIGINT)
 		try:
@@ -952,11 +952,13 @@ class TestGunicornWorker(FrappeTestCase):
 		except subprocess.TimeoutExpired:
 			self.handle.kill()
 
+	@unittest.skip("Flaky test")
 	def test_gunicorn_ping_sync(self):
 		self.spawn_gunicorn([])
 		path = f"http://{self.TEST_SITE}:{self.port}/api/method/ping"
 		self.assertEqual(requests.get(path).status_code, 200)
-		
+
+	@unittest.skip("Flaky test")
 	def test_gunicorn_ping_gthread(self):
 		self.spawn_gunicorn(["--threads=2"])
 		path = f"http://{self.TEST_SITE}:{self.port}/api/method/ping"

@@ -74,14 +74,16 @@ frappe.ui.form.PrintView = class {
 			icon: "refresh",
 		});
 
-		this.page.add_action_icon(
-			"es-line-filetype",
-			() => {
-				this.go_to_form_view();
-			},
-			"",
-			__("Form")
-		);
+		if (frappe.is_mobile()) {
+			this.page.add_button(__("Form"), () => this.go_to_form_view(), { icon: "small-file" });
+		} else {
+			this.page.add_action_icon(
+				"es-line-filetype",
+				() => this.go_to_form_view(),
+				"",
+				__("Form")
+			);
+		}
 	}
 
 	setup_sidebar() {
@@ -249,6 +251,7 @@ frappe.ui.form.PrintView = class {
 		let is_standard_but_editable = print_format.name && print_format.custom_format;
 
 		if (is_standard_but_editable) {
+			frappe.model.clear_doc("Print Format", print_format.name);
 			frappe.set_route("Form", "Print Format", print_format.name);
 			return;
 		}
@@ -774,8 +777,8 @@ frappe.ui.form.PrintView = class {
 			format = this.selected_format();
 		}
 
-		if (locals["Print Format"] && locals["Print Format"][format]) {
-			print_format = locals["Print Format"][format];
+		if (locals[":Print Format"] && locals[":Print Format"][format]) {
+			print_format = locals[":Print Format"][format];
 		}
 
 		return print_format;

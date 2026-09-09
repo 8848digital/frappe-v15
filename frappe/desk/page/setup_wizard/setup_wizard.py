@@ -2,6 +2,7 @@
 # License: MIT. See LICENSE
 
 import json
+from typing import Any
 
 import frappe
 from frappe import _
@@ -48,7 +49,7 @@ def get_setup_stages(args):  # nosemgrep
 
 
 @frappe.whitelist()
-def setup_complete(args):
+def setup_complete(args: str | dict[str, Any]):
 	"""Calls hooks for `setup_wizard_complete`, sets home page as `desktop`
 	and clears cache. If wizard breaks, calls `setup_wizard_exception` hook"""
 
@@ -68,7 +69,9 @@ def setup_complete(args):
 
 
 @frappe.whitelist()
-def initialize_system_settings_and_user(system_settings_data, user_data):
+def initialize_system_settings_and_user(
+	system_settings_data: str | dict[str, Any], user_data: str | dict[str, Any]
+):
 	system_settings = frappe.get_single("System Settings")
 
 	if cint(system_settings.setup_complete):
@@ -286,11 +289,13 @@ def create_or_update_user(args):  # nosemgrep
 
 	if user := frappe.db.get_value("User", email, ["first_name", "last_name"], as_dict=True):
 		if user.first_name != first_name or user.last_name != last_name:
+			User = frappe.qb.DocType("User")
 			(
-				frappe.qb.update("User")
-				.set("first_name", first_name)
-				.set("last_name", last_name)
-				.set("full_name", args.get("full_name"))
+				frappe.qb.update(User)
+				.set(User.first_name, first_name)
+				.set(User.last_name, last_name)
+				.set(User.full_name, args.get("full_name"))
+				.where(User.name == email)
 			).run()
 	else:
 		_mute_emails, frappe.flags.mute_emails = frappe.flags.mute_emails, True
@@ -375,7 +380,7 @@ def disable_future_access():
 
 
 @frappe.whitelist()
-def load_messages(language):
+def load_messages(language: str):
 	"""Load translation messages for given language from all `setup_wizard_requires`
 	javascript files"""
 	from frappe.translate import get_messages_for_boot

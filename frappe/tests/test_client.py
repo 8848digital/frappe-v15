@@ -158,6 +158,34 @@ class TestClient(FrappeTestCase):
 		self.assertEqual(get("ToDo", filters={}), get("ToDo", filters="{}"))
 		todo.delete()
 
+	def test_client_validatate_link(self):
+		from frappe.client import validate_link
+
+		# Basic test
+		self.assertTrue(validate_link("User", "Guest"))
+
+		# fixes capitalization
+		if frappe.db.db_type == "mariadb":
+			self.assertEqual(validate_link("User", "GueSt"), {"name": "Guest"})
+
+		# Fetch
+		self.assertEqual(validate_link("User", "Guest", fields=["enabled"]), {"name": "Guest", "enabled": 1})
+
+		# Permissions
+		with self.set_user("Guest"), self.assertRaises(frappe.PermissionError):
+			self.assertEqual(
+				validate_link("User", "Guest", fields=["enabled"]), {"name": "Guest", "enabled": 1}
+			)
+
+	def test_validate_link_fetches_child_table_field(self):
+		from frappe.client import validate_link
+
+		role_row = frappe.get_doc("User", "Administrator").roles[0]
+		self.assertEqual(
+			validate_link("Has Role", role_row.name, fields=["role"]),
+			{"name": role_row.name, "role": role_row.role},
+		)
+
 	def test_client_insert(self):
 		from frappe.client import insert
 
@@ -244,3 +272,12 @@ class TestClient(FrappeTestCase):
 		# cleanup
 		for doc in docs:
 			frappe.delete_doc("Note", doc)
+
+	def test_get_value_scientific_notation_docname(self):
+		from frappe.client import get_value
+
+		tag = frappe.get_doc({"doctype": "Tag", "name": "3E002"}).insert(ignore_if_duplicate=True)
+		try:
+			self.assertEqual(get_value("Tag", ["name"], "3E002"), {"name": "3E002"})
+		finally:
+			tag.delete()

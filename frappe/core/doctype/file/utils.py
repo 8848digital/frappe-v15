@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 def make_home_folder() -> None:
 	home = frappe.get_doc(
-		{"doctype": "File", "is_folder": 1, "is_home_folder": 1, "file_name": _("Home")}
+		{"doctype": "File", "is_folder": 1, "is_home_folder": 1, "file_name": "Home"}
 	).insert(ignore_if_duplicate=True)
 
 	frappe.get_doc(
@@ -35,7 +35,7 @@ def make_home_folder() -> None:
 			"folder": home.name,
 			"is_folder": 1,
 			"is_attachments_folder": 1,
-			"file_name": _("Attachments"),
+			"file_name": "Attachments",
 		}
 	).insert(ignore_if_duplicate=True)
 
@@ -415,6 +415,29 @@ def relink_mismatched_files(doc: "Document") -> None:
 	for df in attach_fields:
 		if doc.get(df.fieldname):
 			relink_files(doc, df.fieldname, doc.__temporary_name)
+
+	# Relink files in child table Attach fields
+	table_fields = doc.meta.get("fields", {"fieldtype": "Table"})
+	for table_df in table_fields:
+		child_rows = doc.get(table_df.fieldname) or []
+		if not child_rows:
+			continue
+
+		child_meta = frappe.get_meta(table_df.options)
+		child_attach_fields = child_meta.get("fields", {"fieldtype": ["in", ["Attach", "Attach Image"]]})
+
+		if not child_attach_fields:
+			continue
+
+		for child_row in child_rows:
+			for child_df in child_attach_fields:
+				file_url = child_row.get(child_df.fieldname)
+				if file_url:
+					frappe.db.set_value(
+						"File",
+						{"file_url": file_url, "attached_to_name": doc.__temporary_name},
+						{"attached_to_name": doc.name},
+					)
 	# delete temporary name after relinking is done
 	doc.delete_key("__temporary_name")
 
@@ -441,3 +464,20 @@ def find_file_by_url(path: str, name: str | None = None) -> Optional["File"]:
 		file: File = frappe.get_doc(doctype="File", **file_data)
 		if file.is_downloadable():
 			return file
+
+
+def get_safe_file_name(file_name: str) -> str:
+	return re.sub(r"[/\\%?#]", "_", file_name)
+
+
+def check_path_safety(base_path: str, requested_path: str) -> bool:
+	"""Util to check path safety by ensuring sandboxing and logging unsuccessful attempts"""
+	base_path = os.path.realpath(base_path)
+	requested_path = os.path.realpath(requested_path)
+	if os.path.commonpath([base_path, requested_path]) != base_path:
+		frappe.log_error(
+			title="Attempted Unauthorized File Access",
+			message=f"Blocked access to: {requested_path}",
+		)
+		return False
+	return True

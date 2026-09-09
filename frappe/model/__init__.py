@@ -54,6 +54,7 @@ no_value_fields = (
 	"Section Break",
 	"Column Break",
 	"Tab Break",
+	"Attachment Gallery",
 	"HTML",
 	"Table",
 	"Table MultiSelect",
@@ -67,6 +68,7 @@ display_fieldtypes = (
 	"Section Break",
 	"Column Break",
 	"Tab Break",
+	"Attachment Gallery",
 	"HTML",
 	"Button",
 	"Image",
@@ -238,7 +240,7 @@ def get_permitted_fields(
 	)
 
 	if permission_type == "select":
-		return permitted_fields
+		return [*meta.default_fields, *permitted_fields]
 
 	valid_columns = set(valid_columns)
 	result = [

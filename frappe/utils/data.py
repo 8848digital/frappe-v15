@@ -727,7 +727,7 @@ def get_month(datetime: DateTimeLikeObject | None = None) -> str:
 
 	if isinstance(datetime, str):
 		datetime = get_datetime(datetime)
-		
+
 	return calendar.month_name[datetime.month]
 
 
@@ -735,6 +735,14 @@ def get_timespan_date_range(timespan: str) -> tuple[datetime.datetime, datetime.
 	today = getdate()
 
 	match timespan:
+		case "last 7 days":
+			return (add_to_date(today, days=-7), today)
+		case "last 14 days":
+			return (add_to_date(today, days=-14), today)
+		case "last 30 days":
+			return (add_to_date(today, days=-30), today)
+		case "last 90 days":
+			return (add_to_date(today, days=-90), today)
 		case "last week":
 			return (
 				get_first_day_of_week(add_to_date(today, days=-7)),
@@ -775,6 +783,21 @@ def get_timespan_date_range(timespan: str) -> tuple[datetime.datetime, datetime.
 			return (get_quarter_start(today), get_quarter_ending(today))
 		case "this year":
 			return (get_year_start(today), get_year_ending(today))
+		case "next 7 days":
+			return (
+				today,
+				add_to_date(today, days=7),
+			)
+		case "next 14 days":
+			return (
+				today,
+				add_to_date(today, days=14),
+			)
+		case "next 30 days":
+			return (
+				today,
+				add_to_date(today, days=30),
+			)
 		case "next week":
 			return (
 				get_first_day_of_week(add_to_date(today, days=7)),
@@ -1019,7 +1042,7 @@ def cstr(s, encoding="utf-8"):
 	return frappe.as_unicode(s, encoding)
 
 
-def sbool(x: str | Any) -> bool | str | Any:
+def sbool(x: str) -> bool | Any:
 	"""Converts str object to Boolean if possible.
 	Example:
 	        "true" becomes True
@@ -1110,8 +1133,12 @@ def _round_away_from_zero(num, precision):
 
 
 def _bankers_rounding(num, precision):
+	if num == 0:
+		return 0.0
+
+	sign = -1 if num < 0 else 1
 	multiplier = 10**precision
-	num = round(num * multiplier, 12)
+	num = round(abs(num) * multiplier, 12)
 
 	if num == 0:
 		return 0.0
@@ -1119,13 +1146,13 @@ def _bankers_rounding(num, precision):
 	floor_num = math.floor(num)
 	decimal_part = num - floor_num
 
-	epsilon = 2.0 ** (math.log(abs(num), 2) - 52.0)
+	epsilon = 2.0 ** (math.log(num, 2) - 52.0)
 	if abs(decimal_part - 0.5) < epsilon:
 		num = floor_num if (floor_num % 2 == 0) else floor_num + 1
 	else:
 		num = round(num)
 
-	return num / multiplier
+	return sign * num / multiplier
 
 
 def remainder(numerator: NumericType, denominator: NumericType, precision: int = 2) -> NumericType:
@@ -1362,14 +1389,26 @@ def money_in_words(
 		out = _(main_currency, context="Currency") + " " + _("Zero")
 	# 0.XX
 	elif main == "0":
-		out = in_words(fraction, in_million).title() + " " + fraction_currency
+		out = in_words(fraction, in_million).title() + " " + _(fraction_currency, context="Currency")
 	else:
-		out = _(main_currency, context="Currency") + " " + in_words(main, in_million).title()
+		if main_currency == "DZD":
+			# Use Dinars for Algerian Compliance
+			out = in_words(main, in_million).title() + " " + _("Dinars", context="Currency")
+		else:
+			out = _(main_currency, context="Currency") + " " + in_words(main, in_million).title()
 		if cint(fraction):
 			out = (
-				out + " " + _("and") + " " + in_words(fraction, in_million).title() + " " + fraction_currency
+				out
+				+ " "
+				+ _("and")
+				+ " "
+				+ in_words(fraction, in_million).title()
+				+ " "
+				+ _(fraction_currency, context="Currency")
 			)
 
+	if main_currency == "DZD":
+		return out + "."
 	return out + " " + _("only.")
 
 
@@ -1734,7 +1773,7 @@ def get_filtered_list_link(doctype: str, docnames: list[str] | None = None, labe
 
 
 def sql_like(value: str, pattern: str) -> bool:
-	if not isinstance(pattern, str) and isinstance(value, str):
+	if not (isinstance(pattern, str) and isinstance(value, str)):
 		return False
 	if pattern.startswith("%") and pattern.endswith("%"):
 		return pattern.strip("%") in value
@@ -1765,12 +1804,38 @@ def filter_operator_is(value: str | None, pattern: str) -> bool:
 	else:
 		frappe.throw(frappe._(f"Invalid argument for operator 'IS': {pattern}"))
 
+
 def filter_operator_timespan(value: str, pattern: str) -> bool:
 	if not value:
 		return False
 
 	date_range = get_timespan_date_range(pattern)
 	return date_range[0] <= getdate(value) <= date_range[1]
+
+
+def convert_type_for_between_filters(value: DateTimeLikeObject, set_time: datetime.time) -> datetime.datetime:
+	"""Expand a date-only bound to a datetime using set_time; leave datetimes as-is."""
+	if isinstance(value, str):
+		if " " in value.strip():
+			value = get_datetime(value)
+		else:
+			value = getdate(value)
+
+	if isinstance(value, datetime.datetime):
+		return value
+	elif isinstance(value, datetime.date):
+		return datetime.datetime.combine(value, set_time)
+
+	return value
+
+
+def filter_operator_between(value: Any, pattern: list | tuple) -> bool:
+	"""Return True if value is between pattern[0] and pattern[1] (inclusive)."""
+	if value is None:
+		return False
+
+	return pattern[0] <= value <= pattern[1]
+
 
 operator_map = {
 	# startswith
@@ -1791,6 +1856,8 @@ operator_map = {
 	"not like": lambda a, b: not sql_like(a, b),
 	"is": filter_operator_is,
 	"Timespan": filter_operator_timespan,
+	"between": filter_operator_between,
+	"Between": filter_operator_between,  # UI sends capitalized form
 }
 
 
@@ -1826,6 +1893,8 @@ def compare(val1: Any, condition: str, val2: Any, fieldtype: str | None = None) 
 	Note:
 	- For "is" operator: No casting is performed to preserve None values
 	- For "in"/"not in" operators: Only val1 is cast (if not None), val2 remains unchanged
+	- For "between"/"Between" operators: Cast val1 and each bound in val2.
+	  For Datetime, date-only bounds expand to start/end of day (same as DB filters).
 	- For "Timespan" operator: No casting is performed
 	- For other operators: Both val1 and val2 are cast to the specified fieldtype
 	"""
@@ -1837,6 +1906,16 @@ def compare(val1: Any, condition: str, val2: Any, fieldtype: str | None = None) 
 			# Cast only val1 (if not None), preserve val2 container
 			if val1 is not None:
 				val1 = cast(fieldtype, val1)
+		elif condition in {"between", "Between"}:
+			if val1 is not None:
+				val1 = cast(fieldtype, val1)
+			if fieldtype == "Datetime":
+				val2 = [
+					convert_type_for_between_filters(val2[0], set_time=datetime.time()),
+					convert_type_for_between_filters(val2[1], set_time=datetime.time(23, 59, 59, 999999)),
+				]
+			else:
+				val2 = [cast(fieldtype, v) for v in val2]
 		else:
 			# Cast both values for comparison operators (=, !=, >, <, >=, <=, like, etc.)
 			val1 = cast(fieldtype, val1)
@@ -1981,7 +2060,7 @@ def _sanitize_column(column_name: str, db_type: str) -> str:
 	def _raise_exception():
 		frappe.throw(_("Invalid field name {0}").format(column_name), frappe.DataError)
 
-	regex = re.compile("^.*[,'();].*")
+	regex = re.compile("^.*[,'();\n`].*")
 	if "ifnull" in column_name:
 		if regex.match(column_name):
 			# to avoid and, or
@@ -1991,7 +2070,7 @@ def _sanitize_column(column_name: str, db_type: str) -> str:
 			# to avoid select, delete, drop, update and case
 			elif any(keyword in column_name.split() for keyword in blacklisted_keywords):
 				_raise_exception()
-			
+
 			elif any(
 				re.search(rf"\b{keyword}\b", column_name, re.IGNORECASE) for keyword in blacklisted_keywords
 			):
@@ -1999,7 +2078,7 @@ def _sanitize_column(column_name: str, db_type: str) -> str:
 
 	elif regex.match(column_name):
 		_raise_exception()
-	
+
 	return column_name
 
 
@@ -2151,6 +2230,7 @@ def guess_date_format(date_string: str) -> str:
 		r"%y.%m.%d",
 		r"%d %b %Y",
 		r"%d %B %Y",
+		r"%d-%b-%Y",
 	]
 
 	TIME_FORMATS = [
@@ -2321,6 +2401,8 @@ def get_imaginary_pixel_response():
 
 
 def is_site_link(link: str) -> bool:
+	if not link:
+		return False
 	if link.startswith("/"):
 		return True
 	return urlparse(link).netloc == urlparse(frappe.utils.get_url()).netloc

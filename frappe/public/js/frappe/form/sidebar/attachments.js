@@ -46,6 +46,7 @@ frappe.ui.form.Attachments = class Attachments {
 	refresh() {
 		if (this.frm.doc.__islocal) {
 			this.parent.toggle(false);
+			this.notify_change();
 			return;
 		}
 		this.parent.toggle(true);
@@ -58,6 +59,11 @@ frappe.ui.form.Attachments = class Attachments {
 		var attachments = this.get_attachments();
 		this.render_attachments(attachments);
 		this.setup_show_all_button(attachments);
+		this.notify_change();
+	}
+
+	notify_change() {
+		$(this.frm.wrapper).trigger("attachments_change");
 	}
 
 	setup_show_all_button(attachments) {
@@ -180,8 +186,18 @@ frappe.ui.form.Attachments = class Attachments {
 				file_url = "/files/" + attachment.file_name;
 			}
 		}
+
+		const is_web_url = /^(https?:)?\/\//i.test(file_url);
+
+		file_url = encodeURI(file_url);
+
 		// hash is not escaped, https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURI
-		return encodeURI(file_url).replace(/#/g, "%23");
+		// only encode hash if it's a local file path, not a web URL
+		if (!is_web_url) {
+			file_url = file_url.replace(/#/g, "%23");
+		}
+
+		return file_url;
 	}
 	get_file_id_from_file_url(file_url) {
 		var fid;
@@ -237,13 +253,17 @@ frappe.ui.form.Attachments = class Attachments {
 		new frappe.ui.FileUploader({
 			doctype: this.frm.doctype,
 			docname: this.frm.docname,
+			fieldname,
 			frm: this.frm,
 			folder: "Home/Attachments",
+			make_attachments_public:
+				fieldname && this.frm.get_docfield(fieldname)?.make_attachment_public
+					? 1
+					: this.frm.meta.make_attachments_public,
 			on_success: (file_doc) => {
 				this.attachment_uploaded(file_doc);
 			},
 			restrictions,
-			make_attachments_public: this.frm.meta.make_attachments_public,
 		});
 	}
 	get_args() {
